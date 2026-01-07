@@ -8,6 +8,7 @@ import { ZenPulse } from './components/ZenPulse';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { DebugConsole } from './components/DebugConsole';
 import { DeveloperModal } from './components/DeveloperModal';
+import { ToastProvider } from './components/ToastProvider';
 import { LearningPhase } from './types';
 
 // Scroll Reset Component
@@ -65,7 +66,9 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <GeniusProvider>
-      <MainLayout />
+      <ToastProvider>
+        <MainLayout />
+      </ToastProvider>
     </GeniusProvider>
   );
 };

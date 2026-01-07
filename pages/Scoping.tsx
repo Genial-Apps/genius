@@ -5,7 +5,7 @@ import { Loader2, ArrowRight, Brain, Target, Shield, CheckCircle, Link as LinkIc
 import { StageExplainer } from '../components/StageExplainer';
 
 export const Scoping: React.FC = () => {
-  const { launchSprint, scopingData, isScoping, updateScopingGoals, userState, loadingProgress, toggleDevMode, isTestingMode, isDevMode, currentLog, refineSession, programs } = useGenius();
+    const { launchSprint, scopingData, isScoping, updateScopingGoals, userState, loadingProgress, toggleDevMode, isTestingMode, isDevMode, currentLog, refineSession, programs, setDeveloperModalOpen, setDeveloperModalTab } = useGenius();
   
   // Priming State
   const [relevance, setRelevance] = useState('');
@@ -165,8 +165,8 @@ export const Scoping: React.FC = () => {
                          </div>
                      )}
                      {!isScoping && scopingData && (
-                         <div className="flex items-center gap-2 text-green-500 text-xs font-mono">
-                             <CheckCircle size={12} /> Analysis Ready
+                         <div onDoubleClick={() => { setDeveloperModalTab('LOGS'); setDeveloperModalOpen(true); }} title="Open Developer Logs" className="flex items-center gap-2 text-green-500 text-xs font-mono cursor-pointer">
+                            <CheckCircle size={12} /> Analysis Ready
                          </div>
                      )}
                 </div>

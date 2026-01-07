@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { useGenius } from '../store/GeniusContext';
-import { X, Map, History, Trash2, Plus, Download, Bug, Terminal, Power, Database } from 'lucide-react';
+import { X, Map, History, Trash2, Plus, Download, Bug, Terminal, Power, Database, Copy } from 'lucide-react';
+import { toast } from '../services/toastService';
 
-type Tab = 'CONTROLS' | 'ROADMAP' | 'HISTORY';
+type Tab = 'CONTROLS' | 'ROADMAP' | 'HISTORY' | 'LOGS';
 
 export const DeveloperModal: React.FC = () => {
-  const { 
-      isDeveloperModalOpen, setDeveloperModalOpen, 
-      isTestingMode, toggleTestingMode, 
-      showDebugLogs, toggleDebugLogs,
-      resetOnboarding, loadSampleData,
-      roadmap, addRoadmapItem, deleteRoadmapItem, sprintHistory 
-  } = useGenius();
-  
-  const [activeTab, setActiveTab] = useState<Tab>('CONTROLS');
+    const { 
+            isDeveloperModalOpen, setDeveloperModalOpen, developerModalTab, setDeveloperModalTab,
+            isTestingMode, toggleTestingMode, 
+            showDebugLogs, toggleDebugLogs,
+            resetOnboarding, loadSampleData,
+            roadmap, addRoadmapItem, deleteRoadmapItem, sprintHistory, logs
+    } = useGenius();
   
   // Roadmap State
   const [roadmapHeading, setRoadmapHeading] = useState('');
@@ -56,7 +55,7 @@ export const DeveloperModal: React.FC = () => {
         {/* Header */}
         <div className="border-b border-slate-800 bg-slate-900 z-10 flex flex-col">
             <div className="p-6 flex justify-between items-center pb-2">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2 font-mono">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2 font-mono">
                     <Terminal size={20} className="text-primary" /> Developer Console
                 </h2>
                 <button onClick={() => setDeveloperModalOpen(false)} className="text-slate-500 hover:text-white">
@@ -64,24 +63,30 @@ export const DeveloperModal: React.FC = () => {
                 </button>
             </div>
             
-            <div className="flex px-6 gap-6">
+                <div className="flex px-6 gap-6">
                 <button 
-                    onClick={() => setActiveTab('CONTROLS')}
-                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === 'CONTROLS' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => setDeveloperModalTab('CONTROLS')}
+                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${developerModalTab === 'CONTROLS' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     System Controls
                 </button>
                 <button 
-                    onClick={() => setActiveTab('ROADMAP')}
-                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === 'ROADMAP' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => setDeveloperModalTab('ROADMAP')}
+                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${developerModalTab === 'ROADMAP' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     Roadmap
                 </button>
                 <button 
-                    onClick={() => setActiveTab('HISTORY')}
-                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === 'HISTORY' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => setDeveloperModalTab('HISTORY')}
+                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${developerModalTab === 'HISTORY' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     Archives
+                </button>
+                <button 
+                    onClick={() => setDeveloperModalTab('LOGS')}
+                    className={`pb-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${developerModalTab === 'LOGS' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                >
+                    Logs
                 </button>
             </div>
         </div>
@@ -90,7 +95,7 @@ export const DeveloperModal: React.FC = () => {
         <div className="p-6 overflow-y-auto flex-1 scrollbar-hide">
             
             {/* --- CONTROLS TAB --- */}
-            {activeTab === 'CONTROLS' && (
+            {developerModalTab === 'CONTROLS' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -178,7 +183,7 @@ export const DeveloperModal: React.FC = () => {
             )}
 
             {/* --- ROADMAP TAB --- */}
-            {activeTab === 'ROADMAP' && (
+            {developerModalTab === 'ROADMAP' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-800 space-y-3">
                         <input 
@@ -235,7 +240,7 @@ export const DeveloperModal: React.FC = () => {
             )}
 
             {/* --- ARCHIVES TAB --- */}
-            {activeTab === 'HISTORY' && (
+            {developerModalTab === 'HISTORY' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                          <h3 className="text-sm font-bold text-secondary uppercase tracking-widest flex items-center gap-2"><History size={14}/> Sprint Log</h3>
@@ -270,6 +275,49 @@ export const DeveloperModal: React.FC = () => {
                     ))}
                 </div>
             )}
+            {/* --- LOGS TAB --- */}
+            {developerModalTab === 'LOGS' && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 className="text-sm font-bold text-secondary uppercase tracking-widest flex items-center gap-2"> Engine Logs</h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">{logs.length} events</span>
+                            <button onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(JSON.stringify(logs, null, 2));
+                                    toast({ title: 'Copied', message: 'Logs copied to clipboard', type: 'success', duration: 3000 });
+                                } catch (e) {
+                                    toast({ title: 'Copy failed', message: 'Unable to copy logs to clipboard', type: 'error', duration: 5000 });
+                                }
+                            }} className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300 flex items-center gap-2 text-xs">
+                                <Copy size={14} /> Copy All
+                            </button>
+                        </div>
+                    </div>
+
+                    {logs.length === 0 && <div className="text-slate-600 italic">No logs yet.</div>}
+
+                    <div className="space-y-3">
+                        {logs.map(log => (
+                            <div key={log.id} className="group border-l-2 pl-3 py-1 relative hover:bg-white/5 rounded-r">
+                                <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${log.type === 'error' ? 'bg-red-500' : log.type === 'request' ? 'bg-blue-500' : log.type === 'response' ? 'bg-green-500' : 'bg-slate-500'}`} />
+                                <div className="flex items-baseline justify-between mb-1">
+                                    <span className={`uppercase font-bold ${log.type === 'error' ? 'text-red-400' : log.type === 'request' ? 'text-blue-400' : log.type === 'response' ? 'text-green-400' : 'text-slate-400'}`}>[{log.type}]</span>
+                                    <span className="text-slate-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div className="text-slate-300 break-words">{log.message}</div>
+                                {log.data && (
+                                    <details className="mt-2">
+                                        <summary className="cursor-pointer text-slate-500 hover:text-slate-300">View Data Payload</summary>
+                                        <pre className="mt-2 p-2 bg-black/30 rounded text-slate-400 overflow-x-auto whitespace-pre-wrap">{JSON.stringify(log.data, null, 2)}</pre>
+                                    </details>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
         </div>
       </div>
     </div>

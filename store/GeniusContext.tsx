@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { LearningPhase, SessionStatus, UserState, LearningUnit, SprintLog, LogEntry, UserPreferences, ScopingData, ScopedGoal, LearningProgram } from '../types';
 import { geniusEngine } from '../services/geminiService';
+import { toast } from '../services/toastService';
 
 export interface RoadmapItem {
   id: string;
@@ -44,11 +45,13 @@ interface GeniusContextType {
   isTestingMode: boolean; 
   showDebugLogs: boolean;
   isDeveloperModalOpen: boolean;
+  developerModalTab: string;
   logs: LogEntry[];
   toggleDevMode: () => void;
   toggleTestingMode: () => void;
   toggleDebugLogs: () => void;
   setDeveloperModalOpen: (open: boolean) => void;
+  setDeveloperModalTab: (tab: string) => void;
   
   // Actions
   updatePreferences: (prefs: UserPreferences) => void;
@@ -102,6 +105,7 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isTestingMode, setIsTestingMode] = useState(false);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [isDeveloperModalOpen, setDeveloperModalOpen] = useState(false);
+  const [developerModalTab, setDeveloperModalTab] = useState<string>('CONTROLS');
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   // Persistent Data
@@ -156,8 +160,78 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         data
       };
       setLogs(prev => [entry, ...prev]); 
+      // Show a toast for errors
+      if (type === 'error') {
+        try { toast({ title: 'Error', message, type: 'error', duration: 8000 }); } catch (e) { console.error(e); }
+      }
     });
   }, []);
+
+  // Global window error handlers to capture uncaught errors and promise rejections
+  useEffect(() => {
+    const onErr = (ev: ErrorEvent) => {
+      const msg = ev.message || 'Uncaught error';
+      const entry: LogEntry = { id: crypto.randomUUID(), timestamp: Date.now(), type: 'error', message: `Uncaught: ${msg}`, data: { filename: ev.filename, lineno: ev.lineno, colno: ev.colno } };
+      setLogs(prev => [entry, ...prev]);
+      try { toast({ title: 'Uncaught Error', message: msg, type: 'error', duration: 10000 }); } catch {}
+    };
+
+    const onRej = (ev: PromiseRejectionEvent) => {
+      const reason = (ev.reason && (ev.reason.message || JSON.stringify(ev.reason))) || 'Unhandled rejection';
+      const entry: LogEntry = { id: crypto.randomUUID(), timestamp: Date.now(), type: 'error', message: `UnhandledRejection: ${reason}`, data: { reason: ev.reason } };
+      setLogs(prev => [entry, ...prev]);
+      try { toast({ title: 'Unhandled Rejection', message: reason, type: 'error', duration: 10000 }); } catch {}
+    };
+
+    window.addEventListener('error', onErr);
+    window.addEventListener('unhandledrejection', onRej as any);
+    return () => {
+      window.removeEventListener('error', onErr);
+      window.removeEventListener('unhandledrejection', onRej as any);
+    };
+  }, []);
+
+  // State change logger: record high-level state transitions
+  const _prevStateRef = useRef<any | null>(null);
+  useEffect(() => {
+    const snapshot = {
+      phase,
+      status,
+      activeProgramId: userState?.activeProgramId,
+      currentSubject: userState?.currentSubject,
+      isScoping,
+      isGenerating,
+      isDevMode,
+      isTestingMode,
+      showDebugLogs,
+      scopingSummary: scopingData ? { complexity: scopingData.complexity, goals: scopingData.goals?.length ?? 0 } : null,
+      timestamp: Date.now()
+    };
+
+    const prev = _prevStateRef.current;
+    if (prev) {
+      const changed = Object.keys(snapshot).filter((k) => {
+        try {
+          return JSON.stringify(prev[k]) !== JSON.stringify(snapshot[k]);
+        } catch {
+          return prev[k] !== snapshot[k];
+        }
+      });
+
+      if (changed.length) {
+        const entry: LogEntry = {
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+          type: 'state',
+          message: `State changed: ${changed.join(', ')}`,
+          data: { before: prev, after: snapshot }
+        };
+        setLogs(prevLogs => [entry, ...prevLogs]);
+      }
+    }
+
+    _prevStateRef.current = snapshot;
+  }, [phase, status, userState, isScoping, isGenerating, isDevMode, isTestingMode, showDebugLogs, scopingData]);
 
   const toggleDevMode = useCallback(() => setIsDevMode(prev => !prev), []);
   const toggleTestingMode = useCallback(() => setIsTestingMode(prev => !prev), []);
@@ -581,6 +655,7 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       phase, status, userState, activeUnit, scopingData, currentLog, timer, hasOnboarded, 
       isGenerating, isScoping, loadingProgress, complexityLevel,
       isDevMode, isTestingMode, showDebugLogs, isDeveloperModalOpen, logs, toggleDevMode, toggleTestingMode, toggleDebugLogs, setDeveloperModalOpen,
+      developerModalTab, setDeveloperModalTab,
       programs, roadmap, sprintHistory, addRoadmapItem, deleteRoadmapItem, loadSampleData,
       prepareSprint, initializeProgram, resumeProgram, refineSession,
       updateScopingGoals, launchSprint, triggerZenPulse, endZenPulse, completeSprint, 
