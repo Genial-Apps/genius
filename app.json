@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "genius",
+    "slug": "genius-academy",
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "5c9091ee-fe24-4d29-9b39-ad9462dc33bd"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5c9091ee-fe24-4d29-9b39-ad9462dc33bd"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
