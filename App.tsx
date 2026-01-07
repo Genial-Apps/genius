@@ -7,6 +7,7 @@ import { Scoping } from './pages/Scoping';
 import { ZenPulse } from './components/ZenPulse';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { DebugConsole } from './components/DebugConsole';
+import { DeveloperModal } from './components/DeveloperModal';
 import { LearningPhase } from './types';
 
 // Scroll Reset Component
@@ -54,6 +55,7 @@ const MainLayout: React.FC = () => {
             <ScrollReset />
             <ZenPulse /> 
             <DebugConsole />
+            <DeveloperModal />
             {!hasOnboarded && <OnboardingOverlay />}
             <AppContent />
         </div>

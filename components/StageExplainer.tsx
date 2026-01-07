@@ -15,10 +15,10 @@ export const StageExplainer: React.FC<StageExplainerProps> = ({ id, title, child
     if (userState.dismissedExplainers.includes(id)) return null;
 
     return (
-        <div className={`bg-slate-900/80 border border-primary/20 p-4 rounded-lg relative backdrop-blur-sm animate-in fade-in slide-in-from-top-2 mb-6 ${className}`}>
+        <div className={`bg-slate-900/80 border border-primary/20 p-4 rounded-lg relative backdrop-blur-sm animate-in fade-in slide-in-from-top-2 mb-6 z-10 ${className}`}>
             <button 
                 onClick={() => dismissExplainer(id)}
-                className="absolute top-2 right-2 text-slate-500 hover:text-white transition-colors"
+                className="absolute top-2 right-2 p-2 -mr-2 -mt-2 text-slate-500 hover:text-white transition-colors z-50"
                 title="Dismiss"
             >
                 <X size={16} />

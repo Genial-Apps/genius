@@ -37,23 +37,30 @@ interface GeniusContextType {
   sprintHistory: ArchivedSprint[];
   addRoadmapItem: (heading: string, content: string) => void;
   deleteRoadmapItem: (id: string) => void;
+  loadSampleData: () => void;
   
   // Dev / Debug State
   isDevMode: boolean;
+  isTestingMode: boolean; 
   showDebugLogs: boolean;
+  isDeveloperModalOpen: boolean;
   logs: LogEntry[];
   toggleDevMode: () => void;
+  toggleTestingMode: () => void;
   toggleDebugLogs: () => void;
+  setDeveloperModalOpen: (open: boolean) => void;
   
   // Actions
   updatePreferences: (prefs: UserPreferences) => void;
   updateName: (name: string) => void;
   setComplexityLevel: (level: 'Beginner' | 'Intermediate' | 'Expert') => void;
+  resetOnboarding: () => void;
   
   // Program Actions
   initializeProgram: (topic: string) => Promise<void>;
   resumeProgram: (programId: string) => Promise<void>;
   prepareSprint: (topic: string) => Promise<void>;
+  refineSession: (newTopic: string) => Promise<void>; 
   
   updateScopingGoals: (goals: ScopedGoal[]) => void;
   launchSprint: (answers: SprintLog['primingAnswers']) => void;
@@ -92,7 +99,9 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   
   // Dev State
   const [isDevMode, setIsDevMode] = useState(false);
+  const [isTestingMode, setIsTestingMode] = useState(false);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
+  const [isDeveloperModalOpen, setDeveloperModalOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   // Persistent Data
@@ -151,6 +160,7 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, []);
 
   const toggleDevMode = useCallback(() => setIsDevMode(prev => !prev), []);
+  const toggleTestingMode = useCallback(() => setIsTestingMode(prev => !prev), []);
   const toggleDebugLogs = useCallback(() => setShowDebugLogs(prev => !prev), []);
 
   const updatePreferences = (prefs: UserPreferences) => {
@@ -188,6 +198,80 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
   };
 
+  const resetOnboarding = () => {
+      setHasOnboarded(false);
+      localStorage.removeItem('genius_onboarded');
+  };
+
+  const loadSampleData = () => {
+      const samplePrograms: LearningProgram[] = [
+          {
+              id: 'sample-1',
+              topic: 'Advanced Game Theory',
+              syllabus: ['Foundations', 'Nash Equilibrium', 'Prisoners Dilemma', 'Applications', 'Evolutionary Strategy', 'Advanced', 'Mastery'],
+              currentSessionIndex: 3,
+              status: 'ACTIVE',
+              lastEngagedAt: Date.now() - 86400000,
+              progress: 42
+          },
+          {
+              id: 'sample-2',
+              topic: 'Neuromarketing',
+              syllabus: ['Basics', 'Brain Structures', 'Attention', 'Memory', 'Emotion', 'Ethics', 'Integration'],
+              currentSessionIndex: 1,
+              status: 'ACTIVE',
+              lastEngagedAt: Date.now() - 172800000,
+              progress: 14
+          },
+          {
+              id: 'sample-3',
+              topic: 'Rust Programming',
+              syllabus: ['Ownership', 'Borrowing', 'Lifetimes', 'Concurrency', 'Unsafe Rust', 'Macros', 'Final Project'],
+              currentSessionIndex: 5,
+              status: 'ACTIVE',
+              lastEngagedAt: Date.now() - 3600000,
+              progress: 71
+          },
+          {
+              id: 'sample-4',
+              topic: 'Stoicism',
+              syllabus: [],
+              currentSessionIndex: 7,
+              status: 'COMPLETED',
+              lastEngagedAt: Date.now() - 604800000,
+              progress: 100
+          },
+          {
+              id: 'sample-5',
+              topic: 'Permaculture Design',
+              syllabus: [],
+              currentSessionIndex: 7,
+              status: 'COMPLETED',
+              lastEngagedAt: Date.now() - 1209600000,
+              progress: 100
+          },
+          {
+              id: 'sample-6',
+              topic: 'Financial Literacy',
+              syllabus: [],
+              currentSessionIndex: 7,
+              status: 'COMPLETED',
+              lastEngagedAt: Date.now() - 2592000000,
+              progress: 100
+          },
+          {
+              id: 'sample-7',
+              topic: 'Renaissance Art',
+              syllabus: [],
+              currentSessionIndex: 7,
+              status: 'COMPLETED',
+              lastEngagedAt: Date.now() - 5184000000,
+              progress: 100
+          }
+      ];
+      setPrograms(samplePrograms);
+  };
+
   // Fake Loading Progress Effect
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -218,27 +302,80 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // 1. Create New Program -> Generate Syllabus -> Start Session 1
   const initializeProgram = async (topic: string) => {
-    setIsScoping(true);
-    setPhase(LearningPhase.SCOPING);
+    // IMMEDIATE TRANSITION: Create placeholder and switch phase to unblock UI
+    const tempId = crypto.randomUUID();
     
-    // Generate Syllabus first
-    const syllabus = await geniusEngine.generateSyllabus(topic, complexityLevel);
-    
-    const newProgram: LearningProgram = {
-        id: crypto.randomUUID(),
-        topic,
-        syllabus,
+    // Check if input is a URL
+    let sourceUrl: string | undefined;
+    try {
+        const url = new URL(topic);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+            sourceUrl = topic;
+        }
+    } catch {
+        // Not a URL
+    }
+
+    const tempProgram: LearningProgram = {
+        id: tempId,
+        topic: topic, // Use input topic initially (URL or Text)
+        sourceUrl: sourceUrl,
+        syllabus: [], // Empty syllabus initially
         currentSessionIndex: 0,
         status: 'ACTIVE',
         lastEngagedAt: Date.now(),
         progress: 0
     };
 
-    setPrograms(prev => [newProgram, ...prev]);
-    setUserState(prev => ({ ...prev, activeProgramId: newProgram.id, currentSubject: topic }));
+    setPrograms(prev => [tempProgram, ...prev]);
+    setUserState(prev => ({ ...prev, activeProgramId: tempId, currentSubject: topic }));
+    
+    // Switch to Scoping Phase immediately
+    setPhase(LearningPhase.SCOPING);
+    setIsScoping(true); // Starts the loader in the Scoping UI
 
-    // Now start scoping for Session 1
-    await _startScopingForSession(newProgram, 0);
+    // START BACKGROUND AI PROCESS (Parallel)
+    _performBackgroundInitialization(tempId, topic, complexityLevel, sourceUrl);
+  };
+  
+  // Background Handler for Initialization
+  const _performBackgroundInitialization = async (programId: string, topic: string, complexity: string, sourceUrl?: string) => {
+      // 1. Kick off Title Resolution (Fire & Forget)
+      if (sourceUrl) {
+          geniusEngine.resolveWebPageTitle(sourceUrl).then(resolvedTitle => {
+              setPrograms(prev => prev.map(p => p.id === programId ? { ...p, topic: resolvedTitle } : p));
+              setUserState(prev => ({ ...prev, currentSubject: resolvedTitle }));
+              setCurrentLog(prev => {
+                  if (prev && prev.topicInput === sourceUrl) return { ...prev, topicInput: resolvedTitle };
+                  return prev;
+              });
+          }).catch(err => console.error("Title resolution failed silently", err));
+      }
+
+      // 2. KICK OFF SCOPING IMMEDIATELY (Don't wait for Syllabus)
+      // This is the critical fix for "Scoping takes too long".
+      // We assume Session 1 context is just the topic itself.
+      const mockProgramForScoping = { id: programId, topic: topic, syllabus: [topic] } as LearningProgram;
+      const scopingPromise = _startScopingForSession(mockProgramForScoping, 0);
+
+      // 3. Generate Syllabus (Slow, Parallel)
+      geniusEngine.generateSyllabus(topic, complexity).then(({ title, syllabus }) => {
+          setPrograms(prev => prev.map(p => 
+            p.id === programId 
+            ? { ...p, topic: title, syllabus } 
+            : p
+          ));
+          if (!sourceUrl) { // Only overwrite title if it wasn't a URL resolved earlier
+            setUserState(prev => ({ ...prev, currentSubject: title }));
+          }
+      }).catch(e => {
+          console.error("Syllabus Gen Failed", e);
+          const fallbackSyllabus = Array(7).fill("").map((_, i) => `Session ${i+1}: Core Concepts`);
+           setPrograms(prev => prev.map(p => p.id === programId ? { ...p, syllabus: fallbackSyllabus } : p));
+      });
+      
+      // Ensure scoping finishes or times out (handled inside _startScopingForSession)
+      await scopingPromise;
   };
 
   // 2. Resume Existing Program -> Scoping Next Session
@@ -247,7 +384,6 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
      if (!program) return;
 
      if (program.currentSessionIndex >= 7) {
-         // Completed program, do nothing or reset?
          return;
      }
 
@@ -255,7 +391,50 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
      setIsScoping(true);
      setUserState(prev => ({ ...prev, activeProgramId: program.id, currentSubject: program.topic }));
 
-     await _startScopingForSession(program, program.currentSessionIndex);
+     // Fire and forget scoping
+     _startScopingForSession(program, program.currentSessionIndex);
+  };
+  
+  // 3. Refine Session Topic & Restart Scoping
+  const refineSession = async (newTopic: string) => {
+      const activeProgram = programs.find(p => p.id === userState.activeProgramId);
+      if (!activeProgram) return;
+
+      // 1. Update State
+      setPrograms(prev => prev.map(p => {
+          if (p.id === activeProgram.id) {
+              const newSyllabus = [...p.syllabus];
+              newSyllabus[p.currentSessionIndex] = newTopic;
+              return { ...p, syllabus: newSyllabus };
+          }
+          return p;
+      }));
+
+      // 2. Re-run Scoping immediate with new topic
+      setIsScoping(true);
+      setScopingData(null);
+      setCurrentLog(prev => prev ? ({ ...prev, topicInput: newTopic }) : null);
+
+      try {
+         // Always use Real AI
+         const data = await geniusEngine.performInitialScoping(
+            newTopic,
+            userState.preferences,
+            activeProgram.currentSessionIndex,
+            7,
+            activeProgram.topic
+        );
+        setScopingData(data);
+      } catch (e) {
+          console.error("Refine Scoping error", e);
+          setScopingData({
+            complexity: 'Analysis Failed',
+            thresholdConcepts: ['Error'],
+            goals: [{ id: 'err', text: 'Retry', isSelected: true, priority: 'Critical' }]
+          });
+      } finally {
+          setIsScoping(false);
+      }
   };
 
   // Internal Scoping Logic
@@ -272,25 +451,35 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         primingAnswers: { relevance: '', relation: '', scope: '' }
       });
 
+      // TIMEOUT PROMISE (15 seconds)
+      const timeout = new Promise<void>((_, reject) => 
+        setTimeout(() => reject(new Error("Scoping Timed Out")), 15000)
+      );
+
       try {
-        const data = await geniusEngine.performInitialScoping(
-            sessionTopic, 
-            userState.preferences,
-            sessionIndex,
-            7,
-            program.topic
-        );
+        // Race AI against timeout
+        const data = await Promise.race([
+             geniusEngine.performInitialScoping(
+                sessionTopic, 
+                userState.preferences,
+                sessionIndex,
+                7,
+                program.topic
+            ),
+            timeout.then(() => { throw new Error("Timeout"); }) as Promise<ScopingData>
+        ]);
+
         setScopingData(data);
       } catch (e) {
-        console.error("Scoping error", e);
-        // Fallback
+        console.error("Scoping error/timeout", e);
+        // Fallback Data so user isn't stuck
         setScopingData({
-            complexity: 'Analysis Failed (Offline Mode)',
+            complexity: 'Analysis Incomplete',
             thresholdConcepts: ['Core Principle 1', 'Core Principle 2', 'Synthesis'],
             goals: [
-                { id: 'err-1', text: 'Identify core concepts', isSelected: true, priority: 'Critical' },
-                { id: 'err-2', text: 'Understand structural dynamics', isSelected: true, priority: 'Useful' },
-                { id: 'err-3', text: 'Apply learning to context', isSelected: true, priority: 'Useful' }
+                { id: 'err-1', text: 'Define core vocabulary', isSelected: true, priority: 'Critical' },
+                { id: 'err-2', text: 'Understand key mechanisms', isSelected: true, priority: 'Useful' },
+                { id: 'err-3', text: 'Apply concepts to context', isSelected: true, priority: 'Useful' }
             ]
         });
       } finally {
@@ -315,12 +504,14 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setCurrentLog(prev => prev ? ({ ...prev, primingAnswers: answers }) : null);
 
     try {
+        // Always use Real AI
         const unit = await geniusEngine.generateSprintContent(
             currentLog.topicInput, 
             answers, 
             scopingData, 
             userState.preferences
         );
+        
         setActiveUnit(unit);
         setTimer(unit.duration * 60 || 600);
     } catch (e) {
@@ -381,9 +572,7 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     localStorage.setItem('genius_onboarded', 'true');
   };
 
-  // Placeholder for the old API
   const prepareSprint = async (topic: string) => {
-      // Not used anymore directly, kept for safety or redirected
       await initializeProgram(topic);
   }
 
@@ -391,11 +580,11 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     <GeniusContext.Provider value={{
       phase, status, userState, activeUnit, scopingData, currentLog, timer, hasOnboarded, 
       isGenerating, isScoping, loadingProgress, complexityLevel,
-      isDevMode, showDebugLogs, logs, toggleDevMode, toggleDebugLogs,
-      programs, roadmap, sprintHistory, addRoadmapItem, deleteRoadmapItem,
-      prepareSprint, initializeProgram, resumeProgram,
+      isDevMode, isTestingMode, showDebugLogs, isDeveloperModalOpen, logs, toggleDevMode, toggleTestingMode, toggleDebugLogs, setDeveloperModalOpen,
+      programs, roadmap, sprintHistory, addRoadmapItem, deleteRoadmapItem, loadSampleData,
+      prepareSprint, initializeProgram, resumeProgram, refineSession,
       updateScopingGoals, launchSprint, triggerZenPulse, endZenPulse, completeSprint, 
-      setPhase, completeOnboarding, updatePreferences, updateName, dismissExplainer, setComplexityLevel
+      setPhase, completeOnboarding, updatePreferences, updateName, dismissExplainer, setComplexityLevel, resetOnboarding
     }}>
       {children}
     </GeniusContext.Provider>
@@ -404,6 +593,8 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 export const useGenius = () => {
   const context = useContext(GeniusContext);
-  if (!context) throw new Error("useGenius must be used within a GeniusProvider");
+  if (context === undefined) {
+    throw new Error('useGenius must be used within a GeniusProvider');
+  }
   return context;
 };

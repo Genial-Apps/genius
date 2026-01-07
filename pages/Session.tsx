@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { SprintTimer } from '../components/SprintTimer';
-import { Zap, BookOpen, AlertTriangle, CheckCircle, Brain, Menu, X, ArrowRight, Lightbulb, Hexagon, Image as ImageIcon, RefreshCw, Quote, Loader2, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Zap, BookOpen, AlertTriangle, CheckCircle, Brain, Menu, X, ArrowRight, Lightbulb, Hexagon, Image as ImageIcon, RefreshCw, Quote, Loader2, Sparkles, ChevronRight, ChevronLeft, Bug } from 'lucide-react';
 import { SessionStatus } from '../types';
 import { InfoTooltip } from '../components/InfoTooltip';
 import { StageExplainer } from '../components/StageExplainer';
@@ -31,7 +31,7 @@ const CHEEKY_LOADERS = [
 ];
 
 export const Session: React.FC = () => {
-  const { activeUnit, isGenerating, loadingProgress, triggerZenPulse, completeSprint, status, toggleDevMode, userState } = useGenius();
+  const { activeUnit, isGenerating, loadingProgress, triggerZenPulse, completeSprint, status, toggleDevMode, userState, isTestingMode, timer } = useGenius();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isContentUnlocked, setIsContentUnlocked] = useState(false);
   
@@ -42,6 +42,7 @@ export const Session: React.FC = () => {
   
   // Pagination State (0 = Intro, 1..N = Sections, N+1 = Outro)
   const [pageIndex, setPageIndex] = useState(0);
+  const [hasMidSprintPulsed, setHasMidSprintPulsed] = useState(false);
   
   const prevStatusRef = useRef(status);
 
@@ -165,7 +166,16 @@ export const Session: React.FC = () => {
   const sectionsCount = activeUnit.sections?.length || 0;
   const maxPages = 1 + sectionsCount + 1; // Intro + Sections + Outro
 
-  const handleNext = () => setPageIndex(p => Math.min(p + 1, maxPages - 1));
+  const handleNext = () => {
+      // Pulse Interruption at 5 mins (300s)
+      if (timer <= 300 && !hasMidSprintPulsed) {
+          triggerZenPulse();
+          setHasMidSprintPulsed(true);
+          return; // Interrupt navigation
+      }
+      setPageIndex(p => Math.min(p + 1, maxPages - 1));
+  };
+  
   const handleBack = () => setPageIndex(p => Math.max(p - 1, 0));
 
   return (
@@ -184,6 +194,14 @@ export const Session: React.FC = () => {
         <SprintTimer />
         
         <div className="flex items-center gap-2 lg:gap-4">
+            {isTestingMode && (
+                <button 
+                    onClick={completeSprint}
+                    className="text-xs bg-accent text-black hover:bg-amber-400 font-bold px-3 py-2 rounded transition-colors whitespace-nowrap flex items-center gap-1"
+                >
+                    <Bug size={12} /> SKIP
+                </button>
+            )}
              <button 
                 onClick={triggerZenPulse}
                 className="flex text-xs items-center gap-1 text-accent hover:text-amber-400 border border-accent/30 px-4 py-2 rounded bg-accent/10 transition-colors uppercase font-bold tracking-wider"
@@ -228,7 +246,7 @@ export const Session: React.FC = () => {
                                     </h3>
                                     <div className="relative z-10">
                                         <Quote size={24} className="text-slate-600 mb-4" />
-                                        <p className="text-slate-100 text-xl md:text-2xl font-light leading-relaxed mb-6">
+                                        <p className="text-slate-100 text-lg md:text-xl font-light leading-relaxed mb-6">
                                             {activeUnit.motivatingStatement || "Mastery is not an act, but a habit. You are building the foundation now."}
                                         </p>
                                         <div className="h-[1px] w-12 bg-primary mb-4"></div>
@@ -412,4 +430,3 @@ export const Session: React.FC = () => {
       </div>
     </div>
   );
-};

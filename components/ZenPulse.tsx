@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { SessionStatus } from '../types';
-import { Wind, Network, Hourglass, X, SkipForward, Brain, CheckSquare, Square, Wand2, RefreshCw } from 'lucide-react';
+import { Wind, Network, Hourglass, X, SkipForward, Brain, CheckSquare, Square, Wand2, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react';
 import { StageExplainer } from './StageExplainer';
 
 type ZenMode = 'MENU' | 'COUNTDOWN' | 'CONNECTIONS' | 'PAIRS';
@@ -152,82 +152,109 @@ const ZenConnections: React.FC = () => {
 interface Card {
     id: string;
     text: string;
+    fullText: string;
     pairId: string;
-    state: 'hidden' | 'selected' | 'matched';
+    state: 'hidden' | 'selected' | 'matched' | 'mismatch';
 }
 
 const ZenPairs: React.FC = () => {
     const { activeUnit } = useGenius();
     const [cards, setCards] = useState<Card[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [isSolved, setIsSolved] = useState(false);
+    const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
 
     useEffect(() => {
         handleReset();
     }, [activeUnit]);
 
-    const handleCardClick = (id: string) => {
-        if (isSolved) return;
-        
-        const clickedCard = cards.find(c => c.id === id);
-        if (!clickedCard || clickedCard.state !== 'hidden' || selectedIds.length >= 2) return;
+    const truncate = (str: string) => {
+        return str.length > 30 ? str.slice(0, 29) + '…' : str;
+    };
 
+    const handleCardClick = (id: string) => {
+        const clickedCard = cards.find(c => c.id === id);
+        
+        // Prevent interaction if blocked, already matched, or selected
+        if (!clickedCard || 
+            clickedCard.state === 'matched' || 
+            clickedCard.state === 'selected' || 
+            selectedIds.length >= 2
+        ) return;
+
+        // Optimistic update: Select the card
         const newSelected = [...selectedIds, id];
-        setCards(cards.map(c => c.id === id ? { ...c, state: 'selected' } : c));
+        setCards(prev => prev.map(c => c.id === id ? { ...c, state: 'selected' } : c));
         setSelectedIds(newSelected);
 
+        // Logic check when 2 cards are selected
         if (newSelected.length === 2) {
-            const card1 = cards.find(c => c.id === newSelected[0]) || clickedCard;
+            const firstId = newSelected[0];
+            const secondId = newSelected[1];
+            
+            const card1 = cards.find(c => c.id === firstId);
             const card2 = clickedCard;
 
-            if (card1.pairId === card2.pairId) {
-                setTimeout(() => {
-                    setCards(prev => prev.map(c => 
-                        newSelected.includes(c.id) ? { ...c, state: 'matched' } : c
-                    ));
-                    setSelectedIds([]);
-                }, 500);
-            } else {
-                setTimeout(() => {
-                    setCards(prev => prev.map(c => 
-                        newSelected.includes(c.id) ? { ...c, state: 'hidden' } : c
-                    ));
-                    setSelectedIds([]);
-                }, 1000);
+            if (card1 && card2) {
+                if (card1.pairId === card2.pairId) {
+                    // MATCH: Turn Green
+                    setTimeout(() => {
+                        setCards(prev => prev.map(c => 
+                            newSelected.includes(c.id) ? { ...c, state: 'matched' } : c
+                        ));
+                        setSelectedIds([]);
+                    }, 500);
+                } else {
+                    // MISMATCH: Flash Orange then Hide
+                    setTimeout(() => {
+                        // Flash Orange
+                        setCards(prev => prev.map(c => 
+                            newSelected.includes(c.id) ? { ...c, state: 'mismatch' } : c
+                        ));
+                        
+                        setTimeout(() => {
+                            // Revert to Hidden
+                            setCards(prev => prev.map(c => 
+                                newSelected.includes(c.id) ? { ...c, state: 'hidden' } : c
+                            ));
+                            setSelectedIds([]);
+                        }, 800);
+                    }, 500);
+                }
             }
         }
     };
 
     const handleSolve = () => {
-        if (!activeUnit?.wordPairs) return;
-        setIsSolved(true);
+        setViewMode('LIST');
         setSelectedIds([]);
-        
-        const orderedCards: Card[] = [];
-        activeUnit.wordPairs.forEach((pair, idx) => {
-            const pairId = `pair-${idx}`;
-            orderedCards.push({ id: `${pairId}-a`, text: pair.a, pairId, state: 'matched' });
-            orderedCards.push({ id: `${pairId}-b`, text: pair.b, pairId, state: 'matched' });
-        });
-        
-        setCards(orderedCards);
+        // Mark all as matched internally for consistency if we switch back, 
+        // though we mainly stay in List mode.
+        setCards(prev => prev.map(c => ({...c, state: 'matched'})));
     };
 
     const handleReset = () => {
         if (!activeUnit?.wordPairs) return;
-        setIsSolved(false);
+        setViewMode('GRID');
         setSelectedIds([]);
         
         const newCards: Card[] = [];
         const pairs = activeUnit.wordPairs || [];
         pairs.forEach((pair, idx) => {
             const pairId = `pair-${idx}`;
-            // Both cards are visible (hidden state logic refers to matched state) in this variant?
-            // User requested "Restored word pair matrix... randomized grid of words".
-            // Standard memory game hides them. "Matched in pairs" implies hiding.
-            // I will default to hidden for gameplay, but ensure grid is full.
-            newCards.push({ id: `${pairId}-a`, text: pair.a, pairId, state: 'hidden' });
-            newCards.push({ id: `${pairId}-b`, text: pair.b, pairId, state: 'hidden' });
+            newCards.push({ 
+                id: `${pairId}-a`, 
+                text: truncate(pair.a), 
+                fullText: pair.a,
+                pairId, 
+                state: 'hidden' 
+            });
+            newCards.push({ 
+                id: `${pairId}-b`, 
+                text: truncate(pair.b), 
+                fullText: pair.b,
+                pairId, 
+                state: 'hidden' 
+            });
         });
         
         // Shuffle for gameplay
@@ -236,55 +263,76 @@ const ZenPairs: React.FC = () => {
 
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-4 px-2">
-                <h3 className="text-secondary uppercase tracking-widest text-xs">Semantic Mapping</h3>
-            </div>
-
-            <div className="flex-1 overflow-y-auto pr-2 pb-12 scrollbar-hide">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start content-start">
-                    {cards.map(card => (
-                        <button
-                            key={card.id}
-                            onClick={() => handleCardClick(card.id)}
-                            disabled={card.state === 'matched'}
-                            className={`
-                                h-24 p-2 rounded-lg border text-xs md:text-sm font-medium flex items-center justify-center text-center transition-all duration-300
-                                ${card.state === 'hidden' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200' : ''}
-                                ${card.state === 'selected' ? 'bg-primary border-primary text-white scale-105 shadow-lg shadow-primary/20' : ''}
-                                ${card.state === 'matched' ? 'bg-emerald-900/30 border-emerald-800 text-emerald-400 opacity-80' : ''}
-                            `}
-                        >
-                            {card.state === 'hidden' ? card.text : card.text} 
-                            {/* Showing text even in 'hidden' state if user wants visible match, 
-                                but standard logic implies hidden. 
-                                IF user wants "Visible match", remove the ternary. 
-                                User said "Randomised grid of words... match in pairs". 
-                                Usually implies visible. I will SHOW text. */}
-                        </button>
-                    ))}
-                    {cards.length === 0 && (
-                        <div className="col-span-full text-center text-slate-500 py-12">
-                            No pairs data available for this unit.
-                        </div>
-                    )}
-                </div>
-            </div>
-            
-            <div className="flex flex-col items-center justify-center pt-4 border-t border-slate-800/50 mt-2 gap-4">
-               <div className="flex gap-4">
+            {/* Header with Controls */}
+            <div className="flex justify-between items-center mb-4 px-2 min-h-[40px] border-b border-slate-800 pb-2">
+                <h3 className="text-secondary uppercase tracking-widest text-xs font-bold">Semantic Mapping</h3>
+                
+                <div className="flex gap-3">
                     <button 
                         onClick={handleReset}
-                        className="text-xs flex items-center gap-2 text-slate-500 hover:text-white px-4 py-2 rounded-full border border-slate-700 hover:bg-slate-800 transition-colors"
+                        className="text-[10px] md:text-xs flex items-center gap-1.5 text-slate-500 hover:text-white transition-colors"
+                        title="Reset Board"
                     >
-                        <RefreshCw size={14} /> Reset
+                        <RefreshCw size={12} /> Reset
                     </button>
                     <button 
                         onClick={handleSolve}
-                        className="text-xs flex items-center gap-2 bg-slate-800 hover:bg-primary hover:text-white px-6 py-2 rounded-full border border-slate-700 transition-colors shadow-lg"
+                        className="text-[10px] md:text-xs flex items-center gap-1.5 text-accent hover:text-amber-300 font-bold transition-colors bg-accent/10 px-2 py-1 rounded-full border border-accent/20"
+                        title="Show Solutions"
                     >
-                        <Wand2 size={14} /> Solve
+                        <Wand2 size={12} /> Solve
                     </button>
                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-hide">
+                
+                {viewMode === 'GRID' ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 content-start">
+                        {cards.map(card => (
+                            <button
+                                key={card.id}
+                                onClick={() => handleCardClick(card.id)}
+                                disabled={card.state === 'matched'}
+                                title={card.fullText}
+                                className={`
+                                    min-h-[3rem] p-2 rounded-lg border text-[11px] md:text-xs font-medium leading-tight flex items-center justify-center text-center transition-all duration-300 relative overflow-hidden break-words
+                                    ${card.state === 'hidden' ? 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200' : ''}
+                                    ${card.state === 'selected' ? 'bg-primary border-primary text-white scale-105 shadow-lg shadow-primary/20 z-10' : ''}
+                                    ${card.state === 'matched' ? 'bg-emerald-900/40 border-emerald-500/50 text-emerald-400 opacity-60' : ''}
+                                    ${card.state === 'mismatch' ? 'bg-orange-900/50 border-orange-500 text-orange-200 animate-pulse' : ''}
+                                `}
+                            >
+                                {card.text}
+                            </button>
+                        ))}
+                        {cards.length === 0 && (
+                            <div className="col-span-full text-center text-slate-500 py-12">
+                                No pairs data available for this unit.
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    // SOLVED LIST VIEW
+                    <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {activeUnit?.wordPairs?.map((pair, i) => (
+                            <div key={i} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 bg-slate-900/50 border border-slate-800 p-3 rounded-lg hover:border-emerald-500/30 transition-colors group">
+                                <div className="flex-1">
+                                    <span className="text-xs font-bold text-emerald-400 block mb-1">Concept</span>
+                                    <span className="text-sm text-slate-200">{pair.a}</span>
+                                </div>
+                                <div className="hidden md:block text-slate-600">
+                                    <ArrowRight size={14} className="group-hover:text-emerald-500 transition-colors" />
+                                </div>
+                                <div className="flex-1 md:text-right border-t md:border-t-0 border-slate-800 pt-2 md:pt-0">
+                                    <span className="text-xs font-bold text-secondary block mb-1">Definition</span>
+                                    <span className="text-sm text-slate-300">{pair.b}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

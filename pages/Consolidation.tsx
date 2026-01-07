@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { LearningPhase } from '../types';
-import { RefreshCw, ArrowRight, Brain, Zap, CheckCircle, Activity, Lightbulb } from 'lucide-react';
+import { RefreshCw, ArrowRight, Brain, Zap, CheckCircle, Activity, Lightbulb, Bug } from 'lucide-react';
 import { StageExplainer } from '../components/StageExplainer';
 
 type Step = 'INTRO' | 'RECALL' | 'BRIDGE' | 'FEEDBACK' | 'SUMMARY';
 
 export const Consolidation: React.FC = () => {
-  const { setPhase, userState, activeUnit, currentLog } = useGenius();
+  const { setPhase, userState, activeUnit, currentLog, isTestingMode } = useGenius();
   const [step, setStep] = useState<Step>('INTRO');
   const [currentConceptIndex, setCurrentConceptIndex] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -76,7 +76,14 @@ export const Consolidation: React.FC = () => {
 
   if (step === 'INTRO') {
       return (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-6 animate-fade-in relative">
+             {isTestingMode && (
+                 <div className="absolute top-4 right-4">
+                     <button onClick={() => setPhase(LearningPhase.INGESTION)} className="text-xs bg-accent text-black font-bold px-3 py-1 rounded-full flex items-center gap-1 hover:bg-amber-400">
+                         <Bug size={12}/> SKIP
+                     </button>
+                 </div>
+             )}
              <div className="max-w-xl w-full">
                 <div className="mb-8 p-6 rounded-full bg-slate-900 border border-slate-800 shadow-2xl animate-breathe inline-block">
                     <Brain size={64} className="text-teal-500" />
@@ -113,7 +120,14 @@ export const Consolidation: React.FC = () => {
 
   if (step === 'RECALL') {
       return (
-          <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-6 animate-in slide-in-from-right-8">
+          <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-6 animate-in slide-in-from-right-8 relative">
+              {isTestingMode && (
+                 <div className="absolute top-20 right-4">
+                     <button onClick={() => setStep('BRIDGE')} className="text-xs bg-accent text-black font-bold px-3 py-1 rounded-full flex items-center gap-1 hover:bg-amber-400">
+                         <Bug size={12}/> SKIP
+                     </button>
+                 </div>
+              )}
               <div className="max-w-2xl w-full">
                   <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
                       <span className="text-xs font-mono text-secondary uppercase tracking-widest">Protocol: Active Recall</span>
@@ -187,7 +201,14 @@ export const Consolidation: React.FC = () => {
 
   if (step === 'BRIDGE') {
       return (
-          <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-6 animate-in slide-in-from-right-8">
+          <div className="min-h-screen bg-background flex flex-col items-center pt-20 px-6 animate-in slide-in-from-right-8 relative">
+              {isTestingMode && (
+                 <div className="absolute top-20 right-4">
+                     <button onClick={() => setStep('SUMMARY')} className="text-xs bg-accent text-black font-bold px-3 py-1 rounded-full flex items-center gap-1 hover:bg-amber-400">
+                         <Bug size={12}/> SKIP
+                     </button>
+                 </div>
+              )}
               <div className="max-w-2xl w-full">
                   <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
                       <span className="text-xs font-mono text-secondary uppercase tracking-widest">Protocol: Interleaving</span>

@@ -10,10 +10,9 @@ const getApiKey = () => {
       return process.env.API_KEY;
     }
   } catch (e) {
-    // process is not defined, ignore and use fallback
+    // process is not defined, ignore
   }
-  // Fallback for prototype/testing
-  return 'AIzaSyB4bHg-sRw1it-_ZGEYZfaVpnF3YRYRMBA'; 
+  return ''; 
 };
 
 const API_KEY = getApiKey();
@@ -25,10 +24,7 @@ class GeniusEngineService {
   private logger: LogCallback | null = null;
 
   constructor() {
-    console.log(`[Genius Engine] Initializing. Key configured: ${!!API_KEY}, Length: ${API_KEY?.length || 0}`);
-    if (!API_KEY) {
-      console.error("[Genius Engine] CRITICAL: No API Key found.");
-    }
+    console.log(`[Genius Engine] Initializing. Key configured: ${!!API_KEY}`);
     this.ai = new GoogleGenAI({ apiKey: API_KEY });
   }
 
@@ -44,8 +40,51 @@ class GeniusEngineService {
     }
   }
 
+  // PHASE 1: Quick URL Resolution
+  async resolveWebPageTitle(url: string): Promise<string> {
+      this.log('info', `Resolving title for URL: ${url}`);
+      const modelName = 'gemini-3-flash-preview';
+      const prompt = `
+        I have this URL: "${url}".
+        I need the actual human-readable Title of the page or video.
+        Use Google Search to find it.
+        
+        Rules:
+        1. Return ONLY the title string.
+        2. Do NOT return the URL.
+        3. Do NOT add quotes.
+        4. If it's a Youtube video, return the video title.
+        5. If you absolutely cannot find it, return "External Resource".
+      `;
+      
+      try {
+        const response = await this.ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+                tools: [{googleSearch: {}}],
+                responseMimeType: "text/plain"
+            }
+        });
+        let title = response.text?.trim() || "External Resource";
+        // Clean up quotes if model adds them
+        title = title.replace(/^"|"$/g, '');
+        
+        // Fallback if model just returns the URL back
+        if (title.includes('http')) {
+            title = "External Resource";
+        }
+
+        this.log('info', `Resolved Title: ${title}`);
+        return title;
+      } catch (error: any) {
+        this.log('error', `Title Resolution Failed: ${error.message}`);
+        return "External Resource";
+      }
+  }
+
   // PHASE 1.5: Syllabus Generation (Program Creation)
-  async generateSyllabus(topic: string, complexity: string): Promise<string[]> {
+  async generateSyllabus(topic: string, complexity: string): Promise<{ title: string, syllabus: string[] }> {
     this.log('info', `Generating Syllabus for: ${topic}`);
     const modelName = 'gemini-3-flash-preview';
 
@@ -54,6 +93,10 @@ class GeniusEngineService {
       Design a 7-Session Mastery Program for the topic: "${topic}".
       Complexity Level: ${complexity}.
 
+      CRITICAL: If the input topic is a URL (like YouTube, Medium, etc.), use the Google Search tool to find the ACTUAL title and context of that content.
+      
+      Extract a concise, meaningful, and punchy "Program Title" (2-6 words) based on the actual content found. Do not use the URL as the title.
+
       The program must be a logical progression:
       Session 1: Foundations & Core Principles
       Session 2-3: Mechanisms & Deep Dives
@@ -61,8 +104,8 @@ class GeniusEngineService {
       Session 6: Advanced/Edge Cases
       Session 7: Mastery & Integration
 
-      Return ONLY a JSON object containing an array of 7 short, punchy session titles.
-      Schema: { syllabus: string[] }
+      Return ONLY a JSON object.
+      Schema: { title: string, syllabus: string[] }
     `;
 
     try {
@@ -70,30 +113,44 @@ class GeniusEngineService {
             model: modelName,
             contents: prompt,
             config: {
+                tools: [{googleSearch: {}}], // Enable search for URL resolution
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
+                        title: { type: Type.STRING },
                         syllabus: { type: Type.ARRAY, items: { type: Type.STRING } }
                     }
                 }
             }
        });
+       
+       // Handle grounding chunks if present (optional logging)
+       if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+           this.log('info', 'Grounding used for syllabus generation');
+       }
+
        // @ts-ignore
        const data = JSON.parse(response.text);
-       return data.syllabus.slice(0, 7); // Ensure max 7
+       return {
+           title: data.title || topic,
+           syllabus: data.syllabus.slice(0, 7) // Ensure max 7
+       };
     } catch (error: any) {
-        this.log('error', `Syllabus Gen Failed: ${error.message}`);
+        this.log('error', `Syllabus Gen Failed: ${error.message}`, error);
         // Fallback
-        return [
-            `${topic}: Foundations`,
-            `${topic}: Core Mechanisms`,
-            `${topic}: Systems`,
-            `${topic}: Applications`,
-            `${topic}: Advanced Theory`,
-            `${topic}: Synthesis`,
-            `${topic}: Final Integration`
-        ];
+        return {
+            title: topic,
+            syllabus: [
+                `Foundations of ${topic}`,
+                `Core Mechanisms`,
+                `Systems`,
+                `Applications`,
+                `Advanced Theory`,
+                `Synthesis`,
+                `Final Integration`
+            ]
+        };
     }
   }
 
@@ -121,7 +178,7 @@ class GeniusEngineService {
       ${contextStr}
 
       Return a JSON object with:
-      1. 'complexity': The assessed complexity level.
+      1. 'complexity': The assessed complexity level. MUST be one of: 'Beginner', 'Intermediate', 'Expert'.
       2. 'thresholdConcepts': 8-10 key terms/jargon specific to THIS session.
       3. 'goals': A list of 5 specific learning outcomes for THIS session.
 
@@ -137,7 +194,7 @@ class GeniusEngineService {
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        complexity: { type: Type.STRING },
+                        complexity: { type: Type.STRING, enum: ['Beginner', 'Intermediate', 'Expert'] },
                         thresholdConcepts: { type: Type.ARRAY, items: { type: Type.STRING } },
                         goals: { type: Type.ARRAY, items: { type: Type.STRING } }
                     }
@@ -163,7 +220,7 @@ class GeniusEngineService {
         };
 
     } catch (error: any) {
-        this.log('error', `Scoping Failed: ${error.message}`);
+        this.log('error', `Scoping Failed: ${error.message}`, error);
         throw error;
     }
   }
@@ -195,13 +252,14 @@ class GeniusEngineService {
       User Profile: ${prefs.complexityPreference}, ${prefs.learningStyle}.
 
       Protocol:
-      1. Motivating Statement: Directly address the user's "Relevance" answer.
-      2. Sections: Create 4 learning sections. Content must be tailored to the prioritized goals.
+      1. Title: Create a clean, engaging headline for this unit (do NOT use a URL).
+      2. Motivating Statement: Directly address the user's "Relevance" answer.
+      3. Sections: Create 4 learning sections. Content must be tailored to the prioritized goals.
          - For 'Critical' goals, go deep.
          - For 'Interesting' goals, add trivia or lateral connections.
-      3. **CRITICAL**: Ensure the 'thresholdConcepts' (${scopingData.thresholdConcepts.join(', ')}) appear naturally in the text.
-      4. Quiz: 2 questions based on the content.
-      5. Word Pairs: 8 pairs for memory game (Concept + Short Definition).
+      4. **CRITICAL**: Ensure the 'thresholdConcepts' (${scopingData.thresholdConcepts.join(', ')}) appear naturally in the text.
+      5. Quiz: 2 questions based on the content.
+      6. Word Pairs: 8 pairs for memory game (Concept + Short Definition).
 
       Output JSON matching LearningUnit schema. Fixed duration: 10 minutes.
     `;
@@ -214,7 +272,7 @@ class GeniusEngineService {
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
-                maxOutputTokens: 8192,
+                // maxOutputTokens removed to prevent generation errors on complex JSON
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
@@ -271,17 +329,17 @@ class GeniusEngineService {
         return { ...data, id: data.id || crypto.randomUUID(), duration: 10 };
 
     } catch (error: any) {
-        this.log('error', `Generation Failed: ${error.message}`);
+        this.log('error', `Generation Failed: ${error.message}`, error);
         // Return minimal fallback for error state
         return {
             id: 'error',
             title: 'Generation Error',
             duration: 10,
             complexity: 'Error',
-            motivatingStatement: 'Error generating content.',
+            motivatingStatement: 'Error generating content. Please check debug logs.',
             smartGoals: [],
             thresholdConcepts: [],
-            sections: [{ title: 'Error', content: 'Please retry.', imageKeyword: 'error', interactionType: 'READ' }],
+            sections: [{ title: 'Error', content: `The AI could not generate this unit. Details: ${error.message}`, imageKeyword: 'error', interactionType: 'READ' }],
             wordPairs: [],
             quiz: []
         };

@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { ScopedGoal, GoalPriority } from '../types';
-import { Loader2, ArrowRight, Brain, Target, Shield, CheckCircle, Link as LinkIcon, Star, Sparkles, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowRight, Brain, Target, Shield, CheckCircle, Link as LinkIcon, Star, Sparkles, AlertTriangle, ArrowLeft, Bug, Edit2, Check, X } from 'lucide-react';
 import { StageExplainer } from '../components/StageExplainer';
 
 export const Scoping: React.FC = () => {
-  const { launchSprint, scopingData, isScoping, updateScopingGoals, userState, loadingProgress, toggleDevMode } = useGenius();
+  const { launchSprint, scopingData, isScoping, updateScopingGoals, userState, loadingProgress, toggleDevMode, isTestingMode, isDevMode, currentLog, refineSession, programs } = useGenius();
   
   // Priming State
   const [relevance, setRelevance] = useState('');
@@ -13,10 +13,32 @@ export const Scoping: React.FC = () => {
   const [scope, setScope] = useState('');
   const [primingStep, setPrimingStep] = useState(1); // 1, 2, 3
   
-  // Learning Contract Visibility
+  // Learning Contract Visibility & Editing
   const [viewContract, setViewContract] = useState(false);
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [editedTopic, setEditedTopic] = useState('');
+  
+  // Stuck State
+  const [isStuck, setIsStuck] = useState(false);
 
   const contractRef = useRef<HTMLDivElement>(null);
+  
+  // Monitor loading time
+  useEffect(() => {
+      let timer: ReturnType<typeof setTimeout>;
+      if (isScoping) {
+          setIsStuck(false);
+          timer = setTimeout(() => setIsStuck(true), 8000); // Show skip after 8s
+      }
+      return () => clearTimeout(timer);
+  }, [isScoping]);
+  
+  // Retrieve Active Program to check for Source URL
+  const activeProgram = programs.find(p => p.id === userState.activeProgramId);
+
+  // Helper to detect if title is still resolving (matches URL)
+  // If the title is still the URL, we show the resolver
+  const isResolvingTitle = activeProgram?.sourceUrl && userState.currentSubject === activeProgram.sourceUrl;
 
   // Handle Goal Toggles
   const toggleGoalSelection = (id: string) => {
@@ -53,6 +75,14 @@ export const Scoping: React.FC = () => {
       if (primingStep === 3 && !scope) return;
       setPrimingStep(p => Math.min(p + 1, 4));
   };
+
+  const devSkip = () => {
+      setRelevance('Mock Relevance');
+      setRelation('Mock Relation');
+      setScope('Mock Scope');
+      setPrimingStep(4);
+      setTimeout(() => revealContract(), 500);
+  };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -71,6 +101,18 @@ export const Scoping: React.FC = () => {
       }, 50);
   };
 
+  const handleEditTopicStart = () => {
+      setEditedTopic(currentLog?.topicInput || '');
+      setIsEditingTopic(true);
+  };
+
+  const handleEditTopicSave = async () => {
+      if (editedTopic.trim()) {
+          setIsEditingTopic(false);
+          await refineSession(editedTopic);
+      }
+  };
+
   const analysisReady = !isScoping && scopingData;
 
   return (
@@ -85,11 +127,38 @@ export const Scoping: React.FC = () => {
                     </h1>
                     <div className="flex items-center gap-2 text-secondary text-[10px] surgical-mono uppercase tracking-widest">
                         <Target size={10} />
-                        Target: {userState.currentSubject}
+                        <span>Target:</span>
+                        {isResolvingTitle ? (
+                             <span className="flex items-center gap-1 text-slate-400 italic">
+                                 <Loader2 size={10} className="animate-spin" /> Resolving Source Signal...
+                             </span>
+                        ) : activeProgram?.sourceUrl ? (
+                            <a 
+                                href={activeProgram.sourceUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="hover:text-primary hover:underline underline-offset-2 transition-all"
+                            >
+                                {userState.currentSubject}
+                            </a>
+                        ) : (
+                            <span>{userState.currentSubject}</span>
+                        )}
                     </div>
                 </div>
                 
                 <div className="flex items-center gap-4">
+                     {/* Skip Button: Shows in Dev/Test modes OR if loading gets stuck */}
+                     {(isTestingMode || isDevMode || isStuck) && (
+                        <button 
+                            onClick={devSkip} 
+                            className="text-xs bg-accent text-black font-bold px-3 py-1 rounded-full flex items-center gap-1 hover:bg-amber-400 z-50 border border-amber-600/50 shadow-sm animate-in fade-in zoom-in"
+                            title="Bypass Scoping"
+                        >
+                            <Bug size={12}/> SKIP
+                        </button>
+                     )}
+                     
                      {isScoping && (
                          <div className="flex items-center gap-2 text-primary text-xs font-mono animate-pulse">
                              <Loader2 size={12} className="animate-spin" /> Scoping... {Math.round(loadingProgress)}%
@@ -107,11 +176,11 @@ export const Scoping: React.FC = () => {
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full overflow-hidden">
           
           {/* LEFT: PRIMING INPUTS */}
-          <div id="scoping-left-panel" className="w-full md:w-1/2 p-6 overflow-y-auto scrollbar-hide border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-center">
+          <div id="scoping-left-panel" className="w-full md:w-1/2 p-6 pt-12 md:pt-16 overflow-y-auto scrollbar-hide border-b md:border-b-0 md:border-r border-slate-800 flex flex-col">
                <div className="max-w-md mx-auto w-full space-y-6 pb-12">
                    
-                   <StageExplainer id="priming" title="Protocol: Priming">
-                       Answer these questions to activate specific neural pathways. 
+                   <StageExplainer id="priming" title="">
+                       <strong>Protocol: Priming</strong>. Answer these questions to activate specific neural pathways. 
                        The AI will use your answers to bridge your existing mental models with the new material.
                    </StageExplainer>
 
@@ -224,15 +293,17 @@ export const Scoping: React.FC = () => {
              id="scoping-right-panel"
              ref={contractRef} 
              className={`
-                w-full md:w-1/2 bg-slate-900/30 p-6 overflow-y-auto scrollbar-hide relative border-t md:border-t-0 md:border-l border-slate-800
+                w-full md:w-1/2 bg-slate-900/30 p-6 pt-12 md:pt-16 overflow-y-auto scrollbar-hide relative border-t md:border-t-0 md:border-l border-slate-800
                 ${viewContract ? 'block opacity-100' : 'hidden md:block md:opacity-0 md:pointer-events-none'}
                 transition-opacity duration-700
              `}
           >
                <div className="max-w-lg mx-auto py-8 pb-16">
                    
-                   <StageExplainer id="goal_setting" title="Learning Contract">
-                       <p className="mb-2">Review your outcomes. Priorities adjust depth:</p>
+                   <h1 className="text-2xl font-light mb-6 text-white text-center md:text-left">Learning Contract</h1>
+
+                   <StageExplainer id="goal_setting" title="">
+                       <p className="mb-2">Review your outcomes. Deselect goals. Adjust priorities:</p>
                        <ul className="list-disc pl-4 text-xs space-y-1 text-slate-400">
                            <li><strong className="text-red-300"><Star size={10} className="inline"/> Critical</strong>: Deep dive, must-know.</li>
                            <li><strong className="text-yellow-300"><Sparkles size={10} className="inline"/> Interesting</strong>: Bonus, lateral thinking.</li>
@@ -241,17 +312,79 @@ export const Scoping: React.FC = () => {
 
                    {scopingData && (
                        <div>
-                           <div className="mb-6 flex items-center justify-between">
-                               <h3 className="text-xl font-light text-white flex items-center gap-2">
-                                   <Brain size={20} className="text-primary"/> Learning Contract
-                               </h3>
-                               <span className="text-xs uppercase tracking-widest bg-slate-800 px-2 py-1 rounded text-slate-400">
+                           {/* GOALS HEADER & Complexity */}
+                           <div className="flex justify-between items-end mb-2">
+                                <h3 className="text-sm font-bold text-secondary uppercase tracking-widest flex items-center gap-2">
+                                     Complexity
+                                </h3>
+                                <span className="text-xs uppercase tracking-widest bg-slate-800 px-2 py-1 rounded text-slate-400">
                                    {scopingData.complexity}
-                               </span>
+                                </span>
+                           </div>
+
+                            {/* PRIMING SYNTHESIS SUMMARY */}
+                           {(relevance || relation || scope) && (
+                                <div className="mb-6 p-4 bg-primary/5 border-l-2 border-primary rounded-r-lg">
+                                    <h4 className="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
+                                        <Brain size={12} /> Priming Synthesis
+                                    </h4>
+                                    <p className="text-sm text-slate-300 leading-relaxed italic">
+                                        "We have calibrated the curriculum to address your specific need for <strong className="text-white not-italic">{relevance || 'mastery'}</strong>, bridging the gap from <strong className="text-white not-italic">{relation || 'prior knowledge'}</strong>. The content has been scoped to match your expectation of <strong className="text-white not-italic">{scope || 'depth'}</strong>."
+                                    </p>
+                                </div>
+                           )}
+                           
+                           <h3 className="text-sm font-bold text-secondary uppercase tracking-widest mb-1 mt-4">
+                                Goals
+                           </h3>
+
+                           {/* Refine Topic Control */}
+                           <div className="mb-6 flex items-center gap-2 bg-slate-800/40 p-2 rounded-lg border border-slate-800">
+                                {!isEditingTopic ? (
+                                    <>
+                                        <span className="text-xs text-secondary font-bold uppercase tracking-widest pl-1">FOCUS:</span>
+                                        {isResolvingTitle ? (
+                                            <span className="flex-1 text-sm font-medium text-slate-400 italic truncate animate-pulse">
+                                                Resolving Source Signal...
+                                            </span>
+                                        ) : activeProgram?.sourceUrl ? (
+                                             <a 
+                                                 href={activeProgram.sourceUrl}
+                                                 target="_blank"
+                                                 rel="noopener noreferrer"
+                                                 className="flex-1 text-sm font-medium text-slate-200 truncate hover:text-primary transition-colors"
+                                                 title={currentLog?.topicInput}
+                                             >
+                                                 {currentLog?.topicInput}
+                                             </a>
+                                        ) : (
+                                            <span className="flex-1 text-sm font-medium text-slate-200 truncate" title={currentLog?.topicInput}>{currentLog?.topicInput}</span>
+                                        )}
+                                        <button 
+                                            onClick={handleEditTopicStart}
+                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                                            title="Refine Topic"
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex gap-2">
+                                        <input 
+                                            value={editedTopic}
+                                            onChange={(e) => setEditedTopic(e.target.value)}
+                                            className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-primary outline-none"
+                                            autoFocus
+                                            onKeyDown={(e) => e.key === 'Enter' && handleEditTopicSave()}
+                                        />
+                                        <button onClick={handleEditTopicSave} className="p-1.5 text-green-400 hover:bg-slate-700 rounded"><Check size={16}/></button>
+                                        <button onClick={() => setIsEditingTopic(false)} className="p-1.5 text-slate-400 hover:bg-slate-700 rounded"><X size={16}/></button>
+                                    </div>
+                                )}
                            </div>
 
                            <div className="space-y-3 mb-8">
-                               <h4 className="text-xs text-secondary font-bold uppercase tracking-widest mb-2">Goals</h4>
+                               {/* Goals list */}
                                {scopingData.goals.map((goal) => (
                                    <div 
                                       key={goal.id}
@@ -323,4 +456,3 @@ export const Scoping: React.FC = () => {
       </div>
     </div>
   );
-};
