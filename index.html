@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Genius Academy | Mastery-as-a-Service</title>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -68,6 +71,34 @@
     "react": "https://esm.sh/react@^19.2.3"
   }
 }
+</script>
+<script>
+  (function(){
+    // Auto-update check: fetch version.json (no-store) and reload when SHA changes
+    try {
+      const check = async () => {
+        try {
+          const res = await fetch('/version.json', { cache: 'no-store' });
+          if (!res.ok) return;
+          const data = await res.json();
+          const current = localStorage.getItem('genius_version_sha');
+          if (current && current !== data.sha) {
+            // New deploy detected — reload to fetch latest assets
+            console.debug('New deploy detected, reloading...');
+            window.location.reload();
+            return;
+          }
+          if (!current) localStorage.setItem('genius_version_sha', data.sha);
+        } catch (e) {
+          // ignore
+        }
+      };
+      // Check once on load
+      check();
+      // Also check again after 30s (in case CI finishes shortly after app load)
+      setTimeout(check, 30000);
+    } catch (e) {}
+  })();
 </script>
 </head>
   <body>

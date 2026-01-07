@@ -1,0 +1,23 @@
+{
+  "name": "genius-expo-wrapper",
+  "version": "0.1.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "build:android": "eas build -p android --non-interactive",
+    "build:ios": "eas build -p ios --non-interactive"
+  },
+  "dependencies": {
+    "expo": "^48.0.0",
+    "expo-constants": "^14.0.0",
+    "react": "18.2.0",
+    "react-native": "0.71.8",
+    "react-native-webview": "^12.3.0"
+  },
+  "devDependencies": {
+    "eas-cli": "^2.3.0"
+  }
+}

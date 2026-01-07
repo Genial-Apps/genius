@@ -1,0 +1,32 @@
+name: Build Expo Wrapper (EAS)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-wrapper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: ./expo-wrapper
+        run: npm ci
+
+      - name: Build Android (EAS)
+        working-directory: ./expo-wrapper
+        run: npx eas build -p android --non-interactive --profile production

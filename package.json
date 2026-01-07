@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "expo start",
+    "eas:update": "eas update --branch main --non-interactive",
+    "eas:build:android": "eas build -p android --non-interactive"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
