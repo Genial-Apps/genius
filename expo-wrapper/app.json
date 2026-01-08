@@ -6,14 +6,11 @@
     "sdkVersion": "48.0.0",
     "platforms": ["android", "ios"],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0f172a"
-    },
     "extra": {
-      "WEBAPP_URL": "https://rendt.github.io/genius"
+      "WEBAPP_URL": "https://rendt.github.io/genius",
+      "eas": {
+        "projectId": "5c9091ee-fe24-4d29-9b39-ad9462dc33bd"
+      }
     }
   }
 }
