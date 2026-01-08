@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { X, Map, History, Trash2, Plus, Download, Bug, Terminal, Power, Database, Copy } from 'lucide-react';
+import { USE_MOCK_FUNCTIONS, BUILD_TIME } from '../services/geminiService';
 import { toast } from '../services/toastService';
 
 type Tab = 'CONTROLS' | 'ROADMAP' | 'HISTORY' | 'LOGS';
@@ -118,6 +119,10 @@ export const DeveloperModal: React.FC = () => {
                             >
                                 {isTestingMode ? 'DISABLE TESTING MODE' : 'ENABLE TESTING MODE'}
                             </button>
+                                <div className="mt-3 text-xs text-slate-400">
+                                    <div>Runtime mocks enabled: <span className="font-mono text-slate-200">{USE_MOCK_FUNCTIONS ? 'true' : 'false'}</span></div>
+                                    <div>Build time: <span className="font-mono text-slate-200">{BUILD_TIME}</span></div>
+                                </div>
                         </div>
 
                          {/* Debug Logs Toggle */}
