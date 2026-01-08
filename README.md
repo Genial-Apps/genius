@@ -21,6 +21,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1N_cUOsvs1kMITtRBm36EBy
 3. Point the web app at your Functions origin and run Vite:
    - In another terminal (project root):
      `export VITE_FUNCTIONS_ORIGIN=http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1 && npm run dev`
+
+Note: the app now prefers real Functions by default. To force the in-browser mock handlers, set `VITE_USE_MOCK_FUNCTIONS=true` in your environment before starting the frontend. If you omit `VITE_FUNCTIONS_ORIGIN`/`VITE_FUNCTIONS_BASE_URL`, the app will attempt to contact `/api/*` paths or your configured emulator.
 Production note: set the Gemini key via Firebase Functions config as described in `docs/DeploymentGuide.md` (do not ship it in the frontend).
 
 ## Deploy to GitHub Pages (production with real functions)

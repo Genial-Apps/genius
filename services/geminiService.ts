@@ -15,10 +15,9 @@ const getBase = (): string => {
 const BASE = getBase();
 
 // Determine whether to use in-browser mock function handlers.
+// Only enable mock handlers when explicitly requested via `VITE_USE_MOCK_FUNCTIONS=true`.
 const _env = (import.meta as any)?.env || {};
-const USE_MOCK_FUNCTIONS = _env?.VITE_USE_MOCK_FUNCTIONS === 'true' || (
-  !_env?.VITE_FUNCTIONS_BASE_URL && !_env?.VITE_FUNCTIONS_ORIGIN && !_env?.VITE_FUNCTIONS_EMULATOR && !_env?.VITE_FUNCTIONS_PROJECT
-);
+const USE_MOCK_FUNCTIONS = _env?.VITE_USE_MOCK_FUNCTIONS === 'true';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
