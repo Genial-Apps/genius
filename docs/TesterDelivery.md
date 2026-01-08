@@ -6,14 +6,15 @@ Objective: provide testers with the latest web app delivered directly from a pub
 Overview:
 - Web host: GitHub Pages serves the production web build at `https://rendt.github.io/genius` (or your configured Pages URL).
 - CI: `.github/workflows/deploy-gh-pages.yml` builds and publishes the `dist/` output on push to `main`.
+- Backend: the AI/Gemini calls go through Firebase HTTPS Functions. Set a GitHub Repository Variable `VITE_FUNCTIONS_ORIGIN` to your deployed Functions origin (e.g. `https://us-central1-YOUR_FIREBASE_PROJECT.cloudfunctions.net`) so the GH Pages build points at the right backend.
 
-What I changed to support this flow:
-- The GH Pages workflow now writes `version.json` (commit SHA) into `dist/` so the running site can detect new deployments.
-- `index.html` includes no-cache meta tags plus a small script that fetches `/version.json` (cache: 'no-store') and reloads the page when a new SHA is detected.
+
 
 Tester quick-start (web-only):
 1. Push to `main` (or merge a PR) — the GH Pages workflow builds and publishes the latest site.
 2. Open the site on any device using the public URL (Android device can use Chrome or any browser).
+ 
+ 
    - For local testing on a dev server, run:
 
 ```bash
@@ -25,7 +26,7 @@ npm run dev
 3. When testers open the URL, their browser will fetch `index.html`. The site includes an auto-update check that fetches `version.json` and forces a reload if the deployed SHA changed since the last visit.
 
 Cache and update notes:
-- The client script checks `/version.json` with `cache: 'no-store'` and reloads automatically when a new deployment is detected. This ensures testers see the latest build at app start without needing to manually clear cache.
+- The client script checks `./version.json` with `cache: 'no-store'` and reloads automatically when a new deployment is detected. This ensures testers see the latest build at app start without needing to manually clear cache.
 - For fastest updates, keep HTML uncached and let static assets use long-term cache headers (assets have hashed filenames).
 - If you need stricter control over HTTP headers, consider hosting on Netlify/Vercel where you can set headers explicitly.
 

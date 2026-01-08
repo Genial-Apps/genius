@@ -14,7 +14,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1N_cUOsvs1kMITtRBm36EBy
 
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   `npm ci`
+2. Start Firebase Functions (emulator recommended for local dev):
+   - In one terminal:
+     `cd firebase/functions && npm ci && npm run build && firebase emulators:start --only functions`
+3. Point the web app at your Functions origin and run Vite:
+   - In another terminal (project root):
+     `export VITE_FUNCTIONS_ORIGIN=http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1 && npm run dev`
+Production note: set the Gemini key via Firebase Functions config as described in `docs/DeploymentGuide.md` (do not ship it in the frontend).

@@ -21,6 +21,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_FUNCTIONS_ORIGIN: ${{ vars.VITE_FUNCTIONS_ORIGIN }}
 
       - name: Write version file
         run: |

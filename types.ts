@@ -114,7 +114,7 @@ export interface SprintLog {
 export interface LogEntry {
   id: string;
   timestamp: number;
-  type: 'info' | 'request' | 'response' | 'error';
+  type: 'info' | 'request' | 'response' | 'error' | 'state';
   message: string;
   data?: any;
 }

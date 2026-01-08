@@ -79,11 +79,13 @@
     try {
       const check = async () => {
         try {
-          const res = await fetch('/version.json', { cache: 'no-store' });
+          // Use relative path so it works on GitHub Pages subpaths (e.g. /genius/)
+          const res = await fetch('./version.json', { cache: 'no-store' });
           if (!res.ok) return;
           const data = await res.json();
           const current = localStorage.getItem('genius_version_sha');
           if (current && current !== data.sha) {
+            localStorage.setItem('genius_version_sha', data.sha);
             // New deploy detected — reload to fetch latest assets
             console.debug('New deploy detected, reloading...');
             window.location.reload();

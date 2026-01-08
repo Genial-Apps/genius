@@ -18,7 +18,7 @@ Local dev (emulator)
    ```
 3. Point the frontend at the emulator (project root):
    ```bash
-   export VITE_FUNCTIONS_BASE_URL="http://127.0.0.1:5001/<PROJECT_ID>/us-central1"
+   export VITE_FUNCTIONS_ORIGIN="http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1"
    npm run dev
    ```
 
@@ -34,10 +34,12 @@ Production
    npm run build
    firebase deploy --only functions
    ```
-3. Set `VITE_FUNCTIONS_BASE_URL` in your hosting/CI to:
+3. Set `VITE_FUNCTIONS_ORIGIN` in your hosting/CI to:
    ```text
-   https://us-central1-<PROJECT_ID>.cloudfunctions.net
+   https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net
    ```
+
+   (The app also accepts `VITE_FUNCTIONS_BASE_URL` for backwards compatibility, but `VITE_FUNCTIONS_ORIGIN` is preferred.)
 
 Notes
 - Do NOT commit keys. Use `.env.local` only for local testing and add it to `.gitignore`.
@@ -64,7 +66,7 @@ Add these rewrites to your Firebase Hosting config to map client paths to functi
 }
 ```
 
-With these rewrites the frontend may call relative endpoints like `POST /api/performInitialScoping` in production without a `VITE_FUNCTIONS_BASE_URL`.
+With these rewrites the frontend may call relative endpoints like `POST /api/performInitialScoping` in production without a `VITE_FUNCTIONS_ORIGIN`.
 
 ---
 
@@ -81,7 +83,7 @@ firebase functions:config:set gemini.key="YOUR_DEV_KEY"
 firebase emulators:start --only functions
 
 # 3) In another terminal, set client env and run dev server
-export VITE_FUNCTIONS_BASE_URL="http://127.0.0.1:5001/<PROJECT_ID>/us-central1"
+export VITE_FUNCTIONS_ORIGIN="http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1"
 npm run dev
 
 # 4) Open the app and trigger Scoping flows. Errors will surface as toasts and in Developer Console.
@@ -132,12 +134,14 @@ npx firebase emulators:start --only functions
 4) Start the frontend dev server (terminal B, project root):
 
 ```bash
-export VITE_FUNCTIONS_BASE_URL="http://127.0.0.1:5001/<PROJECT_ID>/us-central1"
+export VITE_FUNCTIONS_ORIGIN="http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1"
 npm run dev
 ```
 
 Notes for Codespaces:
 - Codespaces automatically forwards the ports your processes listen on. If you run the emulator on port `5001` and Vite on `5173` (or 3001 in this project), open the forwarded ports in the Codespaces UI and then open them in the browser.
+
+Vite runs on port `3000` in this project.
 - If you used the `.runtimeconfig.json` method you don't need to run `firebase login` in the Codespace.
 - For convenience, run the emulator in one terminal and the dev server in another. If you want a single command to show steps, use `npm run emulator:test` which prints the commands to run.
 
