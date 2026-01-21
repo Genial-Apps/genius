@@ -30,7 +30,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_FUNCTIONS_ORIGIN: ${{ vars.VITE_FUNCTIONS_ORIGIN }}
+          VITE_USE_MOCK_FUNCTIONS: 'false'
+          VITE_FUNCTIONS_BASE_URL: ${{ secrets.FUNCTIONS_BASE_URL }}
 
       - name: Write version file
         run: |

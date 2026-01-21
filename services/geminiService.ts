@@ -133,6 +133,15 @@ const callFunction = async (name: string, payload: any) => {
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch (e) { json = { raw: text }; }
   if (!res.ok) {
+    // A common misconfiguration in static hosting (e.g. GitHub Pages) is calling /api/* without
+    // any server-side rewrites or a configured Functions origin/base URL.
+    if (res.status === 405 && base === '/api') {
+      const details = typeof json?.raw === 'string' ? json.raw.slice(0, 120) : undefined;
+      const hint = 'Backend not configured: set VITE_FUNCTIONS_BASE_URL (or VITE_FUNCTIONS_ORIGIN) to your deployed Functions URL, or host behind Firebase Hosting rewrites for /api/*.';
+      log('error', hint, { status: res.status, body: json, details });
+      throw new Error(hint);
+    }
+
     // if 404 try a secondary fallback if possible
     if (res.status === 404) {
       log('info', `Received 404 from ${url} for ${name}. Trying hosting-style /api/${name} fallback.`);
