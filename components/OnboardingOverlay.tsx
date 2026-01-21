@@ -4,7 +4,7 @@ import { UserPreferences } from '../types';
 import { Zap, ChevronRight, Check, BrainCircuit, Activity, Clock, Layers, User } from 'lucide-react';
 
 const introStep = {
-    title: "Welcome to Genius Academy",
+    title: "Welcome to Genius Academy 1.0",
     desc: "Before we begin, we need to calibrate the engine to your cognitive signature. This allows the AI to tailor content density, structure, and pacing to your specific neuro-type.",
     insight: "We don't just present content; we reshape it to fit your brain's preferred protocol.",
     icon: <BrainCircuit size={48} className="text-primary" />
