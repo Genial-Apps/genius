@@ -22,7 +22,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1N_cUOsvs1kMITtRBm36EBy
    - In another terminal (project root):
      `export VITE_FUNCTIONS_ORIGIN=http://127.0.0.1:5001/YOUR_PROJECT_ID/us-central1 && npm run dev`
 
-Note: the app now prefers real Functions by default. To force the in-browser mock handlers, set `VITE_USE_MOCK_FUNCTIONS=true` in your environment before starting the frontend. If you omit `VITE_FUNCTIONS_ORIGIN`/`VITE_FUNCTIONS_BASE_URL`, the app will attempt to contact `/api/*` paths or your configured emulator.
+Note: the app uses real Firebase Functions endpoints. If you omit `VITE_FUNCTIONS_ORIGIN`/`VITE_FUNCTIONS_BASE_URL`, the app will attempt to contact `/api/*` and you must provide a backend (Firebase Hosting rewrites in production, or a running emulator in local dev).
 Production note: set the Gemini key via Firebase Functions config as described in `docs/DeploymentGuide.md` (do not ship it in the frontend).
 
 ## Deploy to GitHub Pages (production with real functions)
@@ -54,6 +54,6 @@ firebase deploy --only functions
    - Name: `FUNCTIONS_BASE_URL`
    - Value: your functions origin (see step 3)
 
-6. The Actions workflow will set `VITE_USE_MOCK_FUNCTIONS=false` during build so the frontend calls your real functions.
+6. The Actions workflow builds the frontend to call your real functions.
 
 If you want me to run the initial build-and-deploy from this environment, I can (requires repo write permissions and auth). Otherwise, set the secret and push to `main` to trigger the workflow.

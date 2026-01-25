@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateSprintContent = exports.performInitialScoping = exports.generateSyllabus = exports.resolveWebPageTitle = void 0;
+exports.generateSprintContent = exports.performInitialScoping = exports.generateSyllabus = exports.healthCheck = exports.resolveWebPageTitle = void 0;
 require("dotenv/config");
 const functions = __importStar(require("firebase-functions"));
 const genai_1 = require("@google/genai");
@@ -62,6 +62,52 @@ const getClient = () => {
         functions.logger.info('Initialized GoogleGenAI client with new API key hash.');
     }
     return cachedClient;
+};
+const normalizeTitle = (raw, fallback) => {
+    const base = typeof raw === 'string' ? raw : '';
+    let title = (base || fallback || 'Program').trim();
+    // Strip common wrappers and collapse whitespace.
+    title = title
+        .replace(/[+]/g, ' ')
+        .replace(/^[`\"']+|[`\"']+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    // If the model echoed instructions or returned a blob, take only the first line-ish chunk.
+    // (Newlines may have been collapsed above; still handle obvious instruction markers.)
+    const suspiciousMarkers = ['return only', 'schema', 'session 1', 'complexity level', 'act as', 'protocol', '{', '}', '"syllabus"', '"title"'];
+    const lower = title.toLowerCase();
+    const looksSuspicious = suspiciousMarkers.some(m => lower.includes(m));
+    if (looksSuspicious || title.length > 80) {
+        // Try to salvage a short, punchy title from the first 2-6 words.
+        const words = title
+            .replace(/[\{\}\[\]\(\):,._/\\|]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .split(' ')
+            .map(w => w.trim())
+            .filter(Boolean)
+            // Drop junky tokens like ARCHITECTUREPLUSPLUSPLUS... or extremely long words.
+            .filter(w => w.length <= 24)
+            .filter(w => !/(plus){2,}/i.test(w))
+            .filter(w => /^[a-z0-9\-']+$/i.test(w));
+        title = words.slice(0, 6).join(' ').trim();
+    }
+    // Enforce sane bounds.
+    if (title.split(' ').filter(Boolean).length < 2) {
+        title = (fallback || 'Program').trim();
+    }
+    if (title.length > 80)
+        title = title.slice(0, 80).trim();
+    return title;
+};
+const normalizeSyllabus = (raw) => {
+    if (!Array.isArray(raw))
+        return [];
+    return raw
+        .filter((x) => typeof x === 'string')
+        .map((x) => x.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 7);
 };
 const withHttp = (handler) => functions
     .region(REGION)
@@ -137,6 +183,13 @@ exports.resolveWebPageTitle = withHttp(async ({ url }) => {
         throw new Error(error?.message || 'Title resolution failed.');
     }
 });
+exports.healthCheck = withHttp(async () => {
+    return {
+        ok: true,
+        region: REGION,
+        timestamp: Date.now()
+    };
+});
 exports.generateSyllabus = withHttp(async ({ topic, complexity }) => {
     if (!topic) {
         throw new Error('`topic` is required.');
@@ -179,9 +232,17 @@ exports.generateSyllabus = withHttp(async ({ topic, complexity }) => {
             }
         });
         const data = JSON.parse(response.text ?? '{}');
+        const title = normalizeTitle(data.title, topic);
+        const syllabus = normalizeSyllabus(data.syllabus);
+        if (typeof data?.title === 'string' && title !== data.title.trim()) {
+            functions.logger.warn('Normalized unexpected program title from model output.', {
+                originalPreview: data.title.slice(0, 120),
+                normalized: title
+            });
+        }
         return {
-            title: data.title || topic,
-            syllabus: Array.isArray(data.syllabus) ? data.syllabus.slice(0, 7) : []
+            title,
+            syllabus
         };
     }
     catch (error) {
@@ -330,7 +391,7 @@ exports.generateSprintContent = withHttp(async (payload) => {
                                     id: { type: genai_1.Type.STRING },
                                     question: { type: genai_1.Type.STRING },
                                     options: { type: genai_1.Type.ARRAY, items: { type: genai_1.Type.STRING } },
-                                    correctIndex: { type: Number },
+                                    correctIndex: { type: genai_1.Type.NUMBER },
                                     explanation: { type: genai_1.Type.STRING }
                                 }
                             }

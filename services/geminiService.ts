@@ -13,75 +13,11 @@ const getBase = (): string => {
 };
 
 const BASE = getBase();
+export const FUNCTIONS_BASE = BASE;
 
-// Determine whether to use in-browser mock function handlers.
-// Only enable mock handlers when explicitly requested via `VITE_USE_MOCK_FUNCTIONS=true`.
-const _env = (import.meta as any)?.env || {};
-export const USE_MOCK_FUNCTIONS = _env?.VITE_USE_MOCK_FUNCTIONS === 'true';
 // Build timestamp (can be overridden at build-time with VITE_BUILD_TIME)
+const _env = (import.meta as any)?.env || {};
 export const BUILD_TIME = _env?.VITE_BUILD_TIME || new Date().toISOString();
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-const mockHandlers: Record<string, (payload: any) => Promise<any>> = {
-  resolveWebPageTitle: async ({ url }: { url?: string }) => {
-    await sleep(120);
-    if (!url) return 'External Resource';
-    try {
-      const u = new URL(url);
-      return u.hostname.replace(/^www\./, '') + ' — Example Title';
-    } catch {
-      return 'External Resource';
-    }
-  },
-  generateSyllabus: async ({ topic, complexity }: { topic?: string; complexity?: string }) => {
-    await sleep(300);
-    const t = topic || 'Topic';
-    return {
-      title: `${t} Mastery`,
-      syllabus: [
-        'Foundations & Core Principles',
-        'Mechanisms & Deep Dive I',
-        'Mechanisms & Deep Dive II',
-        'Applications & Synthesis I',
-        'Applications & Synthesis II',
-        'Advanced Topics & Edge Cases',
-        'Mastery & Integration'
-      ]
-    };
-  },
-  performInitialScoping: async (payload: any) => {
-    await sleep(220);
-    const topic = payload?.topic || 'Topic';
-    return {
-      complexity: 'Intermediate',
-      thresholdConcepts: ['Concept A', 'Concept B', 'Concept C', 'Concept D', 'Concept E', 'Concept F', 'Concept G', 'Concept H'],
-      goals: Array.from({ length: 5 }).map((_, i) => ({ id: `g${i + 1}`, text: `Goal ${i + 1} for ${topic}`, isSelected: true, priority: 'Useful' }))
-    };
-  },
-  generateSprintContent: async (payload: any) => {
-    await sleep(300);
-    const topic = payload?.topic || 'Topic';
-    return {
-      id: `mock-${Date.now()}`,
-      title: `${topic}: Quick Unit`,
-      duration: 10,
-      complexity: 'Intermediate',
-      motivatingStatement: `This short unit makes ${topic} relevant and actionable.`,
-      smartGoals: ['Understand core concept', 'Apply in a simple example'],
-      thresholdConcepts: payload?.scopingData?.thresholdConcepts || ['Concept A', 'Concept B'],
-      sections: [
-        { title: 'Overview', content: 'Quick overview content.', imageKeyword: topic, interactionType: 'READ' },
-        { title: 'Practice', content: 'Short practice activity.', imageKeyword: topic, interactionType: 'REFLECTION' }
-      ],
-      wordPairs: Array.from({ length: 8 }).map((_, i) => ({ a: `Term${i + 1}`, b: `Def${i + 1}` })),
-      quiz: [
-        { id: 'q1', question: 'Sample question?', options: ['A', 'B', 'C'], correctIndex: 0, explanation: 'Because...' },
-        { id: 'q2', question: 'Another?', options: ['A', 'B'], correctIndex: 1, explanation: 'Because...' }
-      ]
-    };
-  }
-};
 let logger: LogCallback | null = null;
 export const setLogger = (cb: LogCallback | null) => { logger = cb; };
 
@@ -96,12 +32,6 @@ const log = (type: Parameters<LogCallback>[0], message: string, data?: any) => {
 
 const callFunction = async (name: string, payload: any) => {
   const base = BASE;
-  if (USE_MOCK_FUNCTIONS) {
-    log('info', `Mocking function ${name}`, payload);
-    const fn = (mockHandlers as any)[name];
-    if (fn) return fn(payload);
-    throw new Error(`No mock handler for function ${name}`);
-  }
   const url = `${base.replace(/\/$/, '')}/${name}`.replace(/:\/\//, '://');
   log('request', `POST ${url}`, payload);
   let res: Response;
@@ -120,7 +50,9 @@ const callFunction = async (name: string, payload: any) => {
     const project = env?.VITE_FUNCTIONS_PROJECT as string | undefined;
     const emulator = env?.VITE_FUNCTIONS_EMULATOR as string | undefined;
     const fallbackBase = emulator ? emulator.replace(/\/$/, '') : (project ? `http://127.0.0.1:5001/${project}/us-central1` : undefined);
-    if (!fallbackBase) throw err;
+    if (!fallbackBase) {
+      throw err;
+    }
     const fallbackUrl = `${fallbackBase}/${name}`;
     log('request', `POST fallback ${fallbackUrl}`, payload);
     res = await fetch(fallbackUrl, {
@@ -130,6 +62,15 @@ const callFunction = async (name: string, payload: any) => {
     });
   }
   const text = await res.text();
+
+  // When running Vite with `/api` proxy but the Functions emulator isn't running,
+  // Vite commonly responds with a bare 500 and an empty body.
+  if (!res.ok && res.status === 500 && (!text || text.trim() === '') && base === '/api') {
+    const hint = 'Functions backend not reachable. Start the Functions emulator (`cd firebase/functions && npm run serve` or `firebase emulators:start --only functions`) and set `VITE_FUNCTIONS_ORIGIN=http://127.0.0.1:5001/<PROJECT_ID>/us-central1` before `npm run dev`.';
+    log('error', hint, { status: res.status, body: null });
+    throw new Error(hint);
+  }
+
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch (e) { json = { raw: text }; }
   if (!res.ok) {
@@ -168,6 +109,15 @@ const callFunction = async (name: string, payload: any) => {
   const result = json?.result ?? json;
   log('response', `Response from ${name}`, result);
   return result;
+};
+
+export const checkBackendHealth = async (): Promise<{ ok: boolean; details?: any }> => {
+  try {
+    const r = await callFunction('healthCheck', {});
+    return { ok: !!(r as any)?.ok, details: r };
+  } catch (e: any) {
+    return { ok: false, details: e?.message || String(e) };
+  }
 };
 
 export const geniusEngine = {

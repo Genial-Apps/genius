@@ -108,10 +108,57 @@ export const GeniusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [developerModalTab, setDeveloperModalTab] = useState<string>('CONTROLS');
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  const normalizeShortTitle = (raw: any, fallback: string = 'Program') => {
+    let title = typeof raw === 'string' ? raw : '';
+    title = (title || fallback)
+      .replace(/[+]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const lower = title.toLowerCase();
+    const suspicious =
+      title.length > 80 ||
+      lower.includes('return only') ||
+      lower.includes('schema') ||
+      lower.includes('complexity level') ||
+      lower.includes('session 1') ||
+      lower.includes('"syllabus"') ||
+      lower.includes('"title"') ||
+      title.includes('{') ||
+      title.includes('}');
+
+    if (suspicious) {
+      const words = title
+        .replace(/[\{\}\[\]\(\):,._/\\|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .map(w => w.trim())
+        .filter(Boolean)
+        .filter(w => w.length <= 24)
+        .filter(w => !/(plus){2,}/i.test(w))
+        .filter(w => /^[a-z0-9\-']+$/i.test(w));
+      title = words.slice(0, 6).join(' ').trim();
+    }
+    if (title.split(' ').filter(Boolean).length < 2) title = fallback;
+    if (title.length > 80) title = title.slice(0, 80).trim();
+    return title;
+  };
+
   // Persistent Data
   const [programs, setPrograms] = useState<LearningProgram[]>(() => {
       const saved = localStorage.getItem('genius_programs');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((p: any) => ({
+          ...p,
+          topic: normalizeShortTitle(p?.topic, 'Program'),
+          syllabus: Array.isArray(p?.syllabus) ? p.syllabus.map((s: any) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : s)).slice(0, 7) : p?.syllabus
+        }));
+      } catch {
+        return [];
+      }
   });
 
   const [roadmap, setRoadmap] = useState<RoadmapItem[]>(() => {

@@ -15,6 +15,9 @@ dist-ssr
 # Firebase Functions local runtime config (contains secrets)
 firebase/functions/.runtimeconfig.json
 
+# Firebase Functions local env file (contains secrets)
+firebase/functions/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGenius } from '../store/GeniusContext';
 import { X, Map, History, Trash2, Plus, Download, Bug, Terminal, Power, Database, Copy } from 'lucide-react';
-import { USE_MOCK_FUNCTIONS, BUILD_TIME } from '../services/geminiService';
+import { BUILD_TIME, checkBackendHealth, FUNCTIONS_BASE } from '../services/geminiService';
 import { toast } from '../services/toastService';
 
 type Tab = 'CONTROLS' | 'ROADMAP' | 'HISTORY' | 'LOGS';
@@ -19,7 +19,23 @@ export const DeveloperModal: React.FC = () => {
   const [roadmapHeading, setRoadmapHeading] = useState('');
   const [roadmapContent, setRoadmapContent] = useState('');
 
+    const [backend, setBackend] = useState<{ status: 'unknown' | 'connected' | 'disconnected'; details?: any }>({
+        status: 'unknown'
+    });
+
   if (!isDeveloperModalOpen) return null;
+
+    useEffect(() => {
+        let cancelled = false;
+        setBackend({ status: 'unknown' });
+        checkBackendHealth().then((r) => {
+            if (cancelled) return;
+            setBackend(r.ok ? { status: 'connected', details: r.details } : { status: 'disconnected', details: r.details });
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [isDeveloperModalOpen]);
 
   const formatDateNZ = (ts: number) => {
       const d = new Date(ts);
@@ -108,7 +124,7 @@ export const DeveloperModal: React.FC = () => {
                                         <Bug size={20} /> Testing Mode
                                     </h3>
                                     <p className="text-sm text-slate-400 mt-1">
-                                        Bypasses AI generation. Uses mock data for Scoping and Sprints. Enables "Skip" buttons in all phases.
+                                        Enables testing shortcuts and "Skip" buttons in all phases.
                                     </p>
                                 </div>
                                 <div className={`w-3 h-3 rounded-full ${isTestingMode ? 'bg-accent animate-pulse' : 'bg-slate-700'}`} />
@@ -120,7 +136,12 @@ export const DeveloperModal: React.FC = () => {
                                 {isTestingMode ? 'DISABLE TESTING MODE' : 'ENABLE TESTING MODE'}
                             </button>
                                 <div className="mt-3 text-xs text-slate-400">
-                                    <div>Runtime mocks enabled: <span className="font-mono text-slate-200">{USE_MOCK_FUNCTIONS ? 'true' : 'false'}</span></div>
+                                                                        <div>
+                                                                            Backend ({FUNCTIONS_BASE}):{' '}
+                                                                            <span className="font-mono text-slate-200">
+                                                                                {backend.status === 'unknown' ? 'checking…' : backend.status}
+                                                                            </span>
+                                                                        </div>
                                     <div>Build time: <span className="font-mono text-slate-200">{BUILD_TIME}</span></div>
                                 </div>
                         </div>

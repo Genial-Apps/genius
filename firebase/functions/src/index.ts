@@ -36,6 +36,56 @@ const getClient = () => {
   return cachedClient;
 };
 
+const normalizeTitle = (raw: unknown, fallback: string) => {
+  const base = typeof raw === 'string' ? raw : '';
+  let title = (base || fallback || 'Program').trim();
+
+  // Strip common wrappers and collapse whitespace.
+  title = title
+    .replace(/[+]/g, ' ')
+    .replace(/^[`\"']+|[`\"']+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // If the model echoed instructions or returned a blob, take only the first line-ish chunk.
+  // (Newlines may have been collapsed above; still handle obvious instruction markers.)
+  const suspiciousMarkers = ['return only', 'schema', 'session 1', 'complexity level', 'act as', 'protocol', '{', '}', '"syllabus"', '"title"'];
+  const lower = title.toLowerCase();
+  const looksSuspicious = suspiciousMarkers.some(m => lower.includes(m));
+  if (looksSuspicious || title.length > 80) {
+    // Try to salvage a short, punchy title from the first 2-6 words.
+    const words = title
+      .replace(/[\{\}\[\]\(\):,._/\\|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map(w => w.trim())
+      .filter(Boolean)
+      // Drop junky tokens like ARCHITECTUREPLUSPLUSPLUS... or extremely long words.
+      .filter(w => w.length <= 24)
+      .filter(w => !/(plus){2,}/i.test(w))
+      .filter(w => /^[a-z0-9\-']+$/i.test(w));
+
+    title = words.slice(0, 6).join(' ').trim();
+  }
+
+  // Enforce sane bounds.
+  if (title.split(' ').filter(Boolean).length < 2) {
+    title = (fallback || 'Program').trim();
+  }
+  if (title.length > 80) title = title.slice(0, 80).trim();
+  return title;
+};
+
+const normalizeSyllabus = (raw: unknown) => {
+  if (!Array.isArray(raw)) return [] as string[];
+  return raw
+    .filter((x) => typeof x === 'string')
+    .map((x: string) => x.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 7);
+};
+
 type Handler<TPayload, TResult> = (payload: TPayload) => Promise<TResult>;
 
 type HttpRequest = functions.https.Request;
@@ -160,6 +210,14 @@ export const resolveWebPageTitle = withHttp(async ({ url }: { url?: string }) =>
   }
 });
 
+export const healthCheck = withHttp(async () => {
+  return {
+    ok: true,
+    region: REGION,
+    timestamp: Date.now()
+  };
+});
+
 export const generateSyllabus = withHttp(
   async ({ topic, complexity }: { topic?: string; complexity?: string }) => {
     if (!topic) {
@@ -207,9 +265,19 @@ export const generateSyllabus = withHttp(
       });
 
       const data = JSON.parse(response.text ?? '{}');
+
+      const title = normalizeTitle(data.title, topic);
+      const syllabus = normalizeSyllabus(data.syllabus);
+
+      if (typeof data?.title === 'string' && title !== data.title.trim()) {
+        functions.logger.warn('Normalized unexpected program title from model output.', {
+          originalPreview: data.title.slice(0, 120),
+          normalized: title
+        });
+      }
       return {
-        title: data.title || topic,
-        syllabus: Array.isArray(data.syllabus) ? data.syllabus.slice(0, 7) : []
+        title,
+        syllabus
       };
     } catch (error: any) {
       functions.logger.error('Syllabus generation failed', { error, topic });
@@ -370,7 +438,7 @@ export const generateSprintContent = withHttp(async (payload: SprintPayload) => 
                   id: { type: Type.STRING },
                   question: { type: Type.STRING },
                   options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  correctIndex: { type: Number },
+                  correctIndex: { type: Type.NUMBER },
                   explanation: { type: Type.STRING }
                 }
               }

@@ -2,6 +2,7 @@
   "hosting": {
     "public": "dist",
     "rewrites": [
+      { "source": "/api/healthCheck",          "function": "healthCheck",          "region": "us-central1" },
       { "source": "/api/resolveWebPageTitle", "function": "resolveWebPageTitle", "region": "us-central1" },
       { "source": "/api/generateSyllabus",      "function": "generateSyllabus",      "region": "us-central1" },
       { "source": "/api/performInitialScoping","function": "performInitialScoping","region": "us-central1" },
