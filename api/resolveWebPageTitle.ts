@@ -1,4 +1,4 @@
-import { getClient, withJsonHandler } from './_lib/genaiClient';
+import { getClient, withJsonHandler } from './_lib/genaiClient.js';
 
 const MODEL = 'gemini-3-flash-preview';
 

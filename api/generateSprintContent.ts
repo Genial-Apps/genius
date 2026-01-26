@@ -1,6 +1,6 @@
 import { Type } from '@google/genai';
 import { randomUUID } from 'node:crypto';
-import { getClient, withJsonHandler } from './_lib/genaiClient';
+import { getClient, withJsonHandler } from './_lib/genaiClient.js';
 import type { SprintPayload } from './_lib/types';
 
 const MODEL = 'gemini-3-flash-preview';

@@ -1,4 +1,4 @@
-import { withJsonHandler } from './_lib/genaiClient';
+import { withJsonHandler } from './_lib/genaiClient.js';
 
 export default withJsonHandler(async () => ({
   ok: true,

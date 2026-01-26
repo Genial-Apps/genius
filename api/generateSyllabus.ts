@@ -1,5 +1,5 @@
 import { Type } from '@google/genai';
-import { getClient, normalizeSyllabus, normalizeTitle, withJsonHandler } from './_lib/genaiClient';
+import { getClient, normalizeSyllabus, normalizeTitle, withJsonHandler } from './_lib/genaiClient.js';
 
 const MODEL = 'gemini-3-flash-preview';
 
