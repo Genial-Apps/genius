@@ -7,26 +7,22 @@
     "dev": "vite",
     "emulator:test": "(cd firebase/functions && firebase functions:config:get || true) && echo \"Start emulator in one terminal: firebase emulators:start --only functions\" && echo \"Then run: export VITE_FUNCTIONS_ORIGIN=http://127.0.0.1:5001/<PROJECT_ID>/us-central1 && npm run dev\"",
     "build": "vite build",
-    "preview": "vite preview",
-    "start": "expo start",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
-    "eas:update": "eas update --branch main --non-interactive",
-    "eas:build:android": "eas build -p android --non-interactive"
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "start": "npm run preview"
   },
   "dependencies": {
     "@google/genai": "^1.34.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "@types/react": "~18.0.27"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
+    "@vercel/node": "^3.2.3",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
     "@vitejs/plugin-react": "^5.0.0",
-    "expo-cli": "^6.3.10",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "gh-pages": "^5.0.0"
+    "vite": "^6.2.0"
   }
 }

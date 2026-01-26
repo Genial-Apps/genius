@@ -5,11 +5,12 @@ Genius Academy is a high-velocity "Mastery-as-a-Service" platform. It leverages 
 
 ## 2. Tech Stack
 *   **Frontend Framework:** React 19 (TypeScript)
-*   **Styling:** Tailwind CSS (Custom "Surgical" Dark Mode Theme)
+*   **Styling:** Tailwind CSS via CDN (Custom "Surgical" Dark Mode Theme)
 *   **Icons:** Lucide React
-*   **AI Integration:** Google GenAI SDK (`@google/genai`) - Model: `gemini-3-flash-preview`
+*   **AI Integration:** Google GenAI SDK (`@google/genai`) proxied through Vercel Serverless Functions (default) or Firebase HTTPS Functions (model: `gemini-3-flash-preview`)
 *   **State Management:** React Context API (`GeniusContext`)
-*   **Build Tooling:** Standard ES Modules (via `importmap` for prototype/no-build environments).
+*   **Build Tooling:** Vite bundler (ESM output) with CDN fallbacks retained for rapid iteration.
+*   **Hosting:** Web-only delivery through Vercel static hosting; future native shells will be layered on later.
 
 ## 3. Functional Breakdown
 
@@ -87,17 +88,23 @@ The app navigation is controlled entirely by the `LearningPhase` state in `Geniu
 
 ### `/services` (Data Layer)
 *   `geminiService.ts`: 
-    *   Handles all interactions with `@google/genai`.
+    *   Routes all AI traffic through Firebase HTTPS Functions.
     *   `performInitialScoping`: Phase 2 analysis.
     *   `generateSprintContent`: Phase 3 content creation.
-    *   Includes a safety check for `process.env` vs hardcoded keys for prototyping.
+    *   Includes cascading fallbacks for emulator URLs and `/api` rewrites when running on Vercel or Firebase Hosting.
 
 ### `/store` (State Layer)
 *   `GeniusContext.tsx`:
     *   Holds the "Truth" of the application.
     *   Manages `scopingData` (intermediate analysis).
     *   Manages `activeUnit` (the current AI-generated content).
-    *   Manages `phase` and `status` (The State Machine).
+    *   Manages `phase` and `status` (The State Machine) and exposes health-checks used by Developer tools.
 
 ### `/types.ts` (Domain Models)
 *   Defines the shape of the data, most notably `LearningUnit`, `ScopingData`, and `ScopedGoal`.
+
+## 6. Deployment Topology
+
+*   **Web Delivery:** The canonical experience is a static bundle deployed to Vercel. Each build runs `vite build`, publishes the `dist/` output, and serves `index.html` with the Tailwind + importmap CDNs intact. No server-side rendering is required.
+*   **AI Proxy:** All generative workloads sit behind the `/api/*` serverless endpoints. By default these are Vercel Serverless Functions co-located in the repo (`api/*`). If you still use Firebase, point `VITE_FUNCTIONS_ORIGIN` to that project instead. When staying on Vercel-only delivery, no additional rewrites are required—the SPA talks to the same-origin `/api` routes.
+*   **Future Native Shells:** The Expo wrapper remains in a separate workspace and will be revived once the Vercel-hosted SPA stabilizes. Native deliverables are intentionally deprioritized for this phase but should mirror the same functions contract when reintroduced.
